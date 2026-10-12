@@ -3,8 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UFA Torneios - Seleção de Gears (Drag & Drop)</title>
+    <title>UFA Torneios - Seleção de Gears (Multiplayer)</title>
+    
+    <!-- Scripts oficiais do Firebase para sincronização em tempo real -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <style>
+        /* A mesma paleta Dark Mode (UFA / E-sports) que você já usa */
         :root {
             --bg-main: #0a0a0a;
             --bg-card: #111111;
@@ -36,12 +42,51 @@
         header h1 { margin: 0; font-size: 26px; font-weight: 800; }
         header h2 { margin: 8px 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
 
+        /* Banner de Turno */
+        .turn-banner {
+            text-align: center;
+            padding: 15px;
+            font-size: 20px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: #222;
+            border-bottom: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .turn-red { background: rgba(243, 18, 96, 0.15); border-bottom-color: var(--team-red); color: var(--team-red); }
+        .turn-blue { background: rgba(0, 112, 243, 0.15); border-bottom-color: var(--team-blue); color: var(--team-blue); }
+
+        /* Controles de Moderação */
+        .admin-controls {
+            text-align: center;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .admin-controls select, .admin-controls button {
+            padding: 10px 20px;
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .admin-controls button:hover { background: var(--accent); border-color: var(--accent); }
+        .admin-controls button.reset-btn { background: #333; color: white; }
+        .admin-controls button.reset-btn:hover { background: #555; }
+
         .lobby-container {
             display: flex;
             justify-content: center;
             flex-wrap: wrap;
             gap: 60px;
-            padding: 50px 20px;
+            padding: 30px 20px 50px;
             max-width: 1200px;
             margin: 0 auto;
         }
@@ -52,7 +97,11 @@
             gap: 20px;
             width: 100%;
             max-width: 350px;
+            transition: opacity 0.3s ease;
         }
+
+        /* Esmaece o time que não está no seu turno */
+        .team-disabled { opacity: 0.4; pointer-events: none; }
 
         .team-header-container {
             text-align: center;
@@ -69,7 +118,6 @@
             margin-bottom: 8px;
         }
 
-        /* Contador de Pontos Visuais */
         .team-budget {
             font-size: 14px;
             font-weight: bold;
@@ -79,7 +127,6 @@
             border-radius: 20px;
             display: inline-block;
             border: 1px solid rgba(245, 166, 35, 0.3);
-            transition: all 0.3s ease;
         }
 
         .team-blue-header { color: var(--team-blue); border-color: var(--team-blue); }
@@ -103,9 +150,8 @@
             background: rgba(0, 112, 243, 0.05);
         }
 
-        /* Destaque visual se o time tentar colocar um item caro demais */
         .player-card.drag-error {
-            border-color: var(--lose);
+            border-color: var(--team-red);
             box-shadow: 0 0 15px rgba(243, 18, 96, 0.4);
             background: rgba(243, 18, 96, 0.05);
         }
@@ -118,26 +164,10 @@
             align-items: center;
         }
 
-        .player-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .player-label::before {
-            content: '';
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: var(--text-muted);
-            border-radius: 50%;
-        }
-
-        /* Botão para Remover o item já equipado */
         .remove-gear-btn {
             background: transparent;
             border: none;
-            color: var(--lose);
+            color: var(--team-red);
             cursor: pointer;
             font-size: 12px;
             font-weight: bold;
@@ -182,11 +212,9 @@
             border-radius: 4px;
             object-fit: cover;
             border: 1px solid var(--border-color);
-            flex-shrink: 0;
             background: #222;
         }
 
-        /* Selo de Pontos do Item equipado */
         .gear-cost-badge {
             background: var(--bg-main);
             color: var(--budget-color);
@@ -204,37 +232,15 @@
             padding-top: 50px;
         }
 
-        .catalog-header {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-
+        .catalog-header { text-align: center; margin-bottom: 25px; }
         .catalog-header h2 { font-size: 24px; font-weight: 800; margin: 0; color: var(--text-main); }
         .catalog-header p { color: var(--text-muted); font-size: 14px; margin-top: 8px; }
 
-        .search-container {
-            max-width: 600px;
-            margin: 0 auto 40px auto;
-        }
-
-        .search-bar {
-            width: 100%;
-            padding: 15px;
-            background: var(--bg-main);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            color: var(--text-main);
-            font-size: 16px;
-            box-sizing: border-box; 
-        }
-
+        .search-container { max-width: 600px; margin: 0 auto 40px auto; }
+        .search-bar { width: 100%; padding: 15px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-main); font-size: 16px; box-sizing: border-box; }
         .search-bar:focus { outline: none; border-color: var(--accent); }
 
-        .catalog-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-        }
+        .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
 
         .catalog-card {
             background: var(--bg-card);
@@ -250,51 +256,37 @@
             position: relative;
         }
 
-        .catalog-card-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            pointer-events: none;
-        }
-
-        .catalog-card:active {
-            cursor: grabbing;
-            opacity: 0.8;
-            transform: scale(0.95);
-        }
-
-        .catalog-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.6);
-            border-color: var(--text-muted);
-        }
-
-        .catalog-card img {
-            width: 50px;
-            height: 50px;
-            border-radius: 6px;
-            object-fit: cover;
-            border: 1px solid var(--border-color);
-            background: #222;
-        }
-
+        .catalog-card-left { display: flex; align-items: center; gap: 15px; pointer-events: none; }
+        .catalog-card:active { cursor: grabbing; opacity: 0.8; transform: scale(0.95); }
+        .catalog-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.6); border-color: var(--text-muted); }
+        
+        .catalog-card img { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border-color); background: #222; }
+        
         .catalog-info { display: flex; flex-direction: column; overflow: hidden; }
         .catalog-name { font-size: 15px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
-        
-        /* Informações visuais do Tier e Pontos na vitrine */
         .catalog-stats { font-size: 12px; color: var(--text-muted); }
         .tier-badge { font-weight: bold; margin-right: 5px; }
         .pts-badge { color: var(--budget-color); }
 
         .catalog-card.hidden { display: none !important; }
-
-        /* Estilo para itens Muito Caros / Bloqueados */
-        .catalog-card.disabled {
-            opacity: 0.3;
-            pointer-events: none; /* Desativa o clique/arraste */
-            filter: grayscale(100%);
-            border-color: #222;
+        .catalog-card.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(100%); border-color: #222; }
+        .catalog-card.picked { opacity: 0.2; pointer-events: none; filter: grayscale(100%); border-color: #222; }
+        
+        /* Uma tag avisando que o item já foi escolhido por outro time */
+        .picked-badge {
+            position: absolute;
+            right: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #ff4444;
+            border: 1px solid #ff4444;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: none;
         }
+        .catalog-card.picked .picked-badge { display: block; }
+        .catalog-card.picked .catalog-stats { display: none; }
+
     </style>
 </head>
 <body>
@@ -304,88 +296,96 @@
         <h1>Lobby Oficial — Modo 3x3</h1>
     </header>
 
+    <!-- Escolha do Papel (Quem está operando esta tela?) -->
+    <div class="admin-controls">
+        <select id="roleSelector" onchange="changeRole()">
+            <option value="viewer">Modo Espectador</option>
+            <option value="red">Sou o Líder Vermelho</option>
+            <option value="blue">Sou o Líder Azul</option>
+            <option value="admin">Sou o Moderador (Controle Total)</option>
+        </select>
+        <button onclick="passTurn()" id="passTurnBtn" style="display:none;">Passar Turno</button>
+        <button class="reset-btn" onclick="resetDraft()" id="resetBtn" style="display:none;">Zerar Campeonato</button>
+    </div>
+
+    <!-- Banner dinâmico avisando de quem é a vez -->
+    <div id="turnBanner" class="turn-banner turn-red">Aguardando Conexão...</div>
+
     <div class="lobby-container">
+        
+        <!-- Time Vermelho (Fica na Esquerda pois escolhe primeiro) -->
+        <div class="team-column" id="team-red" data-budget="11">
+            <div class="team-header-container team-red-header">
+                <div class="team-name">Time Vermelho</div>
+                <div class="team-budget">Pontos: <span class="budget-value">11</span></div>
+            </div>
+            
+            <div class="player-card dropzone" id="slot-4" data-cost="0">
+                <div class="player-info"><span>Jogador 1 (Vermelho)</span><button class="remove-gear-btn" onclick="removeGear('slot-4')">X</button></div>
+                <div class="gear-btn"><div class="gear-btn-content">Vazio</div></div>
+            </div>
+            <div class="player-card dropzone" id="slot-5" data-cost="0">
+                <div class="player-info"><span>Jogador 2 (Vermelho)</span><button class="remove-gear-btn" onclick="removeGear('slot-5')">X</button></div>
+                <div class="gear-btn"><div class="gear-btn-content">Vazio</div></div>
+            </div>
+            <div class="player-card dropzone" id="slot-6" data-cost="0">
+                <div class="player-info"><span>Jogador 3 (Vermelho)</span><button class="remove-gear-btn" onclick="removeGear('slot-6')">X</button></div>
+                <div class="gear-btn"><div class="gear-btn-content">Vazio</div></div>
+            </div>
+        </div>
+
         <!-- Time Azul -->
         <div class="team-column" id="team-blue" data-budget="11">
             <div class="team-header-container team-blue-header">
                 <div class="team-name">Time Azul</div>
-                <div class="team-budget">Pontos Disponíveis: <span class="budget-value">11</span></div>
+                <div class="team-budget">Pontos: <span class="budget-value">11</span></div>
             </div>
             
             <div class="player-card dropzone" id="slot-1" data-cost="0">
-                <div class="player-info">
-                    <div class="player-label">Jogador 1</div>
-                    <button class="remove-gear-btn" onclick="removeGear('slot-1')">Remover</button>
-                </div>
-                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
+                <div class="player-info"><span>Jogador 1 (Azul)</span><button class="remove-gear-btn" onclick="removeGear('slot-1')">X</button></div>
+                <div class="gear-btn"><div class="gear-btn-content">Vazio</div></div>
             </div>
             <div class="player-card dropzone" id="slot-2" data-cost="0">
-                <div class="player-info">
-                    <div class="player-label">Jogador 2</div>
-                    <button class="remove-gear-btn" onclick="removeGear('slot-2')">Remover</button>
-                </div>
-                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
+                <div class="player-info"><span>Jogador 2 (Azul)</span><button class="remove-gear-btn" onclick="removeGear('slot-2')">X</button></div>
+                <div class="gear-btn"><div class="gear-btn-content">Vazio</div></div>
             </div>
             <div class="player-card dropzone" id="slot-3" data-cost="0">
-                <div class="player-info">
-                    <div class="player-label">Jogador 3</div>
-                    <button class="remove-gear-btn" onclick="removeGear('slot-3')">Remover</button>
-                </div>
-                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
+                <div class="player-info"><span>Jogador 3 (Azul)</span><button class="remove-gear-btn" onclick="removeGear('slot-3')">X</button></div>
+                <div class="gear-btn"><div class="gear-btn-content">Vazio</div></div>
             </div>
         </div>
 
-        <!-- Time Vermelho -->
-        <div class="team-column" id="team-red" data-budget="11">
-            <div class="team-header-container team-red-header">
-                <div class="team-name">Time Vermelho</div>
-                <div class="team-budget">Pontos Disponíveis: <span class="budget-value">11</span></div>
-            </div>
-            
-            <div class="player-card dropzone" id="slot-4" data-cost="0">
-                <div class="player-info">
-                    <div class="player-label">Jogador 4</div>
-                    <button class="remove-gear-btn" onclick="removeGear('slot-4')">Remover</button>
-                </div>
-                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
-            </div>
-            <div class="player-card dropzone" id="slot-5" data-cost="0">
-                <div class="player-info">
-                    <div class="player-label">Jogador 5</div>
-                    <button class="remove-gear-btn" onclick="removeGear('slot-5')">Remover</button>
-                </div>
-                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
-            </div>
-            <div class="player-card dropzone" id="slot-6" data-cost="0">
-                <div class="player-info">
-                    <div class="player-label">Jogador 6</div>
-                    <button class="remove-gear-btn" onclick="removeGear('slot-6')">Remover</button>
-                </div>
-                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
-            </div>
-        </div>
     </div>
 
-    <!-- Catálogo de Acessórios para Pesquisa e Arraste -->
+    <!-- Catálogo de Acessórios -->
     <div class="catalog-container">
         <div class="catalog-header">
-            <h2>Arsenal Oficial de Acessórios</h2>
-            <p>Arraste o item para o jogador. Controle o Orçamento de 11 Pontos da sua equipe.</p>
+            <h2>Arsenal de Acessórios</h2>
         </div>
-        
         <div class="search-container">
             <input type="text" id="searchInput" class="search-bar" placeholder="Buscar acessório..." onkeyup="filterGears()">
         </div>
-
         <div class="catalog-grid" id="catalogGrid"></div>
     </div>
 
     <script>
-        const maxBudget = 11;
-        let currentDragItemCost = 0;
-        let currentDragTargetTeam = null;
+        // ========================================================
+        // 1. CONFIGURAÇÃO DO FIREBASE (COLE SUA CHAVE AQUI)
+        // ========================================================
+        const firebaseConfig = {
+            // Substitua esta URL pelo link que o Firebase gerou para você
+            databaseURL: "https://console.firebase.google.com/u/0/project/ong-machtmaking/database/ong-machtmaking-default-rtdb/data/~2F"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Base de Dados processada a partir do seu arquivo oficial (XML/CSV)
+        // ========================================================
+        // 2. VARIÁVEIS E BASE DE DADOS (TIER LIST)
+        // ========================================================
+        const maxBudget = 11;
+        let myRole = "viewer"; 
+        let currentTurn = "red"; // Vermelho sempre começa
+
         const gearDatabase = [
             { name: "Vanglorious Lucifer", image: "https://ga2dojo.wiki.gg/images/Lucifer%27s_Arrogance.png?440ab3", tier: "SS", points: 6 },
             { name: "Satanic Glimpse", image: "https://ga2dojo.wiki.gg/images/Satanic_Glimpse.png", tier: "SS", points: 6 },
@@ -893,23 +893,136 @@
             return gear.image !== "" ? gear.image : `https://via.placeholder.com/50/333333/ffffff?text=${getInitials(gear.name)}`;
         }
 
-        // Função para recalcular e checar o orçamento de um time específico
+        // ========================================================
+        // 3. LÓGICA DE TURNOS E MODERAÇÃO
+        // ========================================================
+        function changeRole() {
+            myRole = document.getElementById("roleSelector").value;
+            const passBtn = document.getElementById("passTurnBtn");
+            const resetBtn = document.getElementById("resetBtn");
+            
+            passBtn.style.display = (myRole === "admin") ? "block" : "none";
+            resetBtn.style.display = (myRole === "admin") ? "block" : "none";
+            
+            updateUIVisibility();
+        }
+
+        function updateUIVisibility() {
+            const teamRed = document.getElementById("team-red");
+            const teamBlue = document.getElementById("team-blue");
+            const banner = document.getElementById("turnBanner");
+
+            // Define o banner
+            if(currentTurn === "red") {
+                banner.className = "turn-banner turn-red";
+                banner.textContent = "Vez do Time Vermelho Escolher";
+            } else {
+                banner.className = "turn-banner turn-blue";
+                banner.textContent = "Vez do Time Azul Escolher";
+            }
+
+            // Esmaece quem não deve jogar
+            teamRed.classList.remove("team-disabled");
+            teamBlue.classList.remove("team-disabled");
+
+            if(currentTurn === "red") {
+                teamBlue.classList.add("team-disabled");
+            } else {
+                teamRed.classList.add("team-disabled");
+            }
+
+            // O Administrador ou o dono do turno atual pode interagir
+            const canInteractRed = (myRole === "admin" || (myRole === "red" && currentTurn === "red"));
+            const canInteractBlue = (myRole === "admin" || (myRole === "blue" && currentTurn === "blue"));
+
+            teamRed.style.pointerEvents = canInteractRed ? "auto" : "none";
+            teamBlue.style.pointerEvents = canInteractBlue ? "auto" : "none";
+
+            checkCatalogAvailability();
+        }
+
+        function passTurn() {
+            const nextTurn = currentTurn === "red" ? "blue" : "red";
+            db.ref('gameState/currentTurn').set(nextTurn);
+        }
+
+        function resetDraft() {
+            if(confirm("Tem certeza que deseja apagar todo o campeonato e recomeçar?")) {
+                db.ref('gameState').set({
+                    currentTurn: "red",
+                    slots: {
+                        "slot-1": { name: "", image: "", cost: 0 },
+                        "slot-2": { name: "", image: "", cost: 0 },
+                        "slot-3": { name: "", image: "", cost: 0 },
+                        "slot-4": { name: "", image: "", cost: 0 },
+                        "slot-5": { name: "", image: "", cost: 0 },
+                        "slot-6": { name: "", image: "", cost: 0 }
+                    }
+                });
+            }
+        }
+
+        // ========================================================
+        // 4. SINCRONIZAÇÃO EM TEMPO REAL (FIREBASE LISTENER)
+        // ========================================================
+        db.ref('gameState').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+
+            // 4.1 Atualiza Turno
+            if (data.currentTurn) {
+                currentTurn = data.currentTurn;
+                updateUIVisibility();
+            }
+
+            // 4.2 Atualiza Slots na tela de todos os computadores
+            if (data.slots) {
+                Object.keys(data.slots).forEach(slotId => {
+                    const slotData = data.slots[slotId];
+                    const slotElement = document.getElementById(slotId);
+                    
+                    slotElement.dataset.cost = slotData.cost || 0;
+                    
+                    const btn = slotElement.querySelector('.gear-btn');
+                    const removeBtn = slotElement.querySelector('.remove-gear-btn');
+                    
+                    if (slotData.name && slotData.name !== "") {
+                        btn.innerHTML = `
+                            <div class="gear-btn-content">
+                                <img src="${slotData.image}">
+                                <span>${slotData.name}</span>
+                            </div>
+                            <div class="gear-cost-badge">${slotData.cost} Pts</div>
+                        `;
+                        btn.classList.add('selected');
+                        removeBtn.style.display = 'block';
+                    } else {
+                        btn.innerHTML = `<div class="gear-btn-content">Vazio</div>`;
+                        btn.classList.remove('selected');
+                        removeBtn.style.display = 'none';
+                    }
+                });
+                
+                // Recalcula o orçamento de ambos os times
+                updateTeamBudget('team-red');
+                updateTeamBudget('team-blue');
+            }
+        });
+
+        // ========================================================
+        // 5. LÓGICA DO ARRASTAR E SOLTAR (DRAG & DROP)
+        // ========================================================
         function updateTeamBudget(teamId) {
             const teamElement = document.getElementById(teamId);
             const slots = teamElement.querySelectorAll('.dropzone');
             
             let totalSpent = 0;
-            slots.forEach(slot => {
-                totalSpent += parseInt(slot.dataset.cost);
-            });
+            slots.forEach(slot => { totalSpent += parseInt(slot.dataset.cost); });
 
             const remaining = maxBudget - totalSpent;
             teamElement.dataset.budget = remaining;
-            
-            const badge = teamElement.querySelector('.budget-value');
-            badge.textContent = remaining;
+            teamElement.querySelector('.budget-value').textContent = remaining;
 
-            // Altera a cor do contador se estiver zerado
             const badgeContainer = teamElement.querySelector('.team-budget');
             if (remaining === 0) {
                 badgeContainer.style.color = '#f31260';
@@ -924,44 +1037,62 @@
             checkCatalogAvailability();
         }
 
-        // Desativa (aplica opacidade/bloqueio) nos itens que ultrapassam o teto de gastos
+        // Verifica se um item já foi escolhido por qualquer slot
+        function isGearPicked(gearName) {
+            let isPicked = false;
+            document.querySelectorAll('.dropzone').forEach(zone => {
+                const btn = zone.querySelector('.gear-btn');
+                if (btn.textContent.includes(gearName)) isPicked = true;
+            });
+            return isPicked;
+        }
+
         function checkCatalogAvailability() {
-            // Verifica o orçamento do time que está sofrendo hover no momento.
-            // Para simplificar a visão do capitão que está arrastando: se ELE segurar, bloqueia.
-            // Como ambos os times têm restrição, ocultamos da lista geral os itens que *nenhum* time pode pagar.
+            const teamRed = document.getElementById('team-red');
+            const teamBlue = document.getElementById('team-blue');
             
-            const budgetBlue = parseInt(document.getElementById('team-blue').dataset.budget);
-            const budgetRed = parseInt(document.getElementById('team-red').dataset.budget);
-            const highestBudget = Math.max(budgetBlue, budgetRed);
+            let activeBudget = 0;
+            if (currentTurn === "red") activeBudget = parseInt(teamRed.dataset.budget);
+            if (currentTurn === "blue") activeBudget = parseInt(teamBlue.dataset.budget);
 
             const cards = document.querySelectorAll('.catalog-card');
             cards.forEach(card => {
+                const name = card.dataset.gearName;
                 const cost = parseInt(card.dataset.gearCost);
-                if (cost > highestBudget) {
-                    card.classList.add('disabled');
-                    card.setAttribute('draggable', 'false'); // Impede de arrastar fisicamente
-                } else {
+                
+                // Se alguém já pegou, marca como "Picked"
+                if (isGearPicked(name)) {
+                    card.classList.add('picked');
                     card.classList.remove('disabled');
-                    card.setAttribute('draggable', 'true');
+                    card.setAttribute('draggable', 'false');
+                } else {
+                    card.classList.remove('picked');
+                    
+                    // Se o time atual não tem dinheiro, desativa o item
+                    if (cost > activeBudget) {
+                        card.classList.add('disabled');
+                        card.setAttribute('draggable', 'false');
+                    } else {
+                        card.classList.remove('disabled');
+                        
+                        // Só permite arrastar se você for o dono do turno (ou admin)
+                        if (myRole === "admin" || (myRole === currentTurn)) {
+                            card.setAttribute('draggable', 'true');
+                        } else {
+                            card.setAttribute('draggable', 'false');
+                        }
+                    }
                 }
             });
         }
 
         function removeGear(slotId) {
-            const slot = document.getElementById(slotId);
-            const btn = slot.querySelector('.gear-btn');
-            
-            // Restaura o visual vazio
-            btn.innerHTML = `<div class="gear-btn-content">Arraste um acessório aqui...</div>`;
-            btn.classList.remove('selected');
-            
-            // Esconde o botão remover
-            slot.querySelector('.remove-gear-btn').style.display = 'none';
-            
-            // Zera o custo do slot e atualiza a matemática
-            slot.dataset.cost = 0;
-            const teamId = slot.closest('.team-column').id;
-            updateTeamBudget(teamId);
+            // Em vez de alterar o HTML local, envia o comando de "apagar" para a Nuvem
+            db.ref(`gameState/slots/${slotId}`).set({
+                name: "",
+                image: "",
+                cost: 0
+            });
         }
 
         function renderCatalog() {
@@ -970,12 +1101,8 @@
 
             gearDatabase.forEach(gear => {
                 const imgUrl = getGearImageUrl(gear);
-                
                 const card = document.createElement('div');
                 card.className = 'catalog-card';
-                card.setAttribute('draggable', 'true');
-                
-                // Salva os dados do item
                 card.dataset.gearName = gear.name;
                 card.dataset.gearImage = imgUrl;
                 card.dataset.gearCost = gear.points;
@@ -991,6 +1118,7 @@
                             </div>
                         </div>
                     </div>
+                    <div class="picked-badge">ESCOLHIDO</div>
                 `;
 
                 card.addEventListener('dragstart', (e) => {
@@ -1001,7 +1129,7 @@
                 
                 catalogGrid.appendChild(card);
             });
-            checkCatalogAvailability();
+            updateUIVisibility();
         }
 
         function filterGears() {
@@ -1010,32 +1138,15 @@
 
             for (let i = 0; i < items.length; i++) {
                 const itemName = items[i].querySelector('.catalog-name').textContent.toLowerCase();
-                if (itemName.includes(input)) {
-                    items[i].classList.remove('hidden');
-                } else {
-                    items[i].classList.add('hidden');
-                }
+                if (itemName.includes(input)) items[i].classList.remove('hidden');
+                else items[i].classList.add('hidden');
             }
         }
 
-        // Zonas de Soltar
         const dropzones = document.querySelectorAll('.dropzone');
         dropzones.forEach(zone => {
-            
-            zone.addEventListener('dragover', (e) => {
-                e.preventDefault(); 
-                const teamId = zone.closest('.team-column').id;
-                const currentBudget = parseInt(document.getElementById(teamId).dataset.budget);
-                
-                // No dragover padrão não temos como ler o dataTransfer seguro em todos os browsers.
-                // O efeito visual de "recusa" ocorre no drop se o custo for maior.
-                zone.classList.add('drag-over'); 
-            });
-
-            zone.addEventListener('dragleave', () => {
-                zone.classList.remove('drag-over');
-                zone.classList.remove('drag-error');
-            });
+            zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+            zone.addEventListener('dragleave', () => { zone.classList.remove('drag-over'); zone.classList.remove('drag-error'); });
 
             zone.addEventListener('drop', (e) => {
                 e.preventDefault();
@@ -1049,35 +1160,28 @@
                 const teamElement = zone.closest('.team-column');
                 const teamId = teamElement.id;
                 
-                // Lógica de Troca (Se o slot já tinha algo, devolve o valor pro orçamento antes de checar)
                 const currentSlotCost = parseInt(zone.dataset.cost);
                 let currentBudget = parseInt(teamElement.dataset.budget);
                 currentBudget += currentSlotCost; 
 
-                // Validação de Teto Salarial
                 if (gearCost > currentBudget) {
                     zone.classList.add('drag-error');
                     setTimeout(() => zone.classList.remove('drag-error'), 800);
-                    return; // Bloqueia a ação
+                    return; 
                 }
 
                 if(gearName && gearImage) {
-                    const btn = zone.querySelector('.gear-btn');
-                    btn.innerHTML = `
-                        <div class="gear-btn-content">
-                            <img src="${gearImage}">
-                            <span>${gearName}</span>
-                        </div>
-                        <div class="gear-cost-badge">${gearCost} Pts</div>
-                    `;
-                    btn.classList.add('selected');
-
-                    // Atualiza o custo deste slot e recalcula
-                    zone.dataset.cost = gearCost;
-                    updateTeamBudget(teamId);
-
-                    // Mostra botão de remover
-                    zone.querySelector('.remove-gear-btn').style.display = 'block';
+                    // Envia a jogada para a Nuvem! A tela vai atualizar sozinha via Firebase.
+                    db.ref(`gameState/slots/${zone.id}`).set({
+                        name: gearName,
+                        image: gearImage,
+                        cost: gearCost
+                    });
+                    
+                    // Se não for o Admin jogando, passa o turno automaticamente pro adversário
+                    if(myRole !== "admin") {
+                        passTurn();
+                    }
                 }
             });
         });
