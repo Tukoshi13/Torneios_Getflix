@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UFA Torneios - Seleção de Gears (Drag & Drop)</title>
+    <style>
+        :root {
+            --bg-main: #0a0a0a;
+            --bg-card: #111111;
+            --border-color: #333333;
+            --text-main: #ededed;
+            --text-muted: #888888;
+            --accent: #0070f3;
+            --accent-glow: rgba(0, 112, 243, 0.4);
+            --team-blue: #0070f3; 
+            --team-red: #f31260;  
+            --budget-color: #f5a623;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        header h1 { margin: 0; font-size: 26px; font-weight: 800; }
+        header h2 { margin: 8px 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
+
+        .lobby-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 60px;
+            padding: 50px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .team-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 350px;
+        }
+
+        .team-header-container {
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 2px solid;
+            margin-bottom: 10px;
+        }
+
+        .team-name {
+            font-size: 22px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        /* Contador de Pontos Visuais */
+        .team-budget {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--budget-color);
+            background: rgba(245, 166, 35, 0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            border: 1px solid rgba(245, 166, 35, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .team-blue-header { color: var(--team-blue); border-color: var(--team-blue); }
+        .team-red-header { color: var(--team-red); border-color: var(--team-red); }
+
+        .player-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: border-color 0.2s;
+        }
+
+        .player-card.drag-over {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+            background: rgba(0, 112, 243, 0.05);
+        }
+
+        /* Destaque visual se o time tentar colocar um item caro demais */
+        .player-card.drag-error {
+            border-color: var(--lose);
+            box-shadow: 0 0 15px rgba(243, 18, 96, 0.4);
+            background: rgba(243, 18, 96, 0.05);
+        }
+
+        .player-info {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .player-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .player-label::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--text-muted);
+            border-radius: 50%;
+        }
+
+        /* Botão para Remover o item já equipado */
+        .remove-gear-btn {
+            background: transparent;
+            border: none;
+            color: var(--lose);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            display: none;
+        }
+        .remove-gear-btn:hover { text-decoration: underline; }
+
+        .gear-btn {
+            background: transparent;
+            border: 1px dashed var(--text-muted);
+            color: var(--text-muted);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 52px;
+            pointer-events: none; 
+        }
+
+        .gear-btn-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .gear-btn.selected {
+            border-style: solid;
+            border-color: var(--accent);
+            color: #fff;
+            background: rgba(0, 112, 243, 0.15);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .gear-btn img {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            object-fit: cover;
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+            background: #222;
+        }
+
+        /* Selo de Pontos do Item equipado */
+        .gear-cost-badge {
+            background: var(--bg-main);
+            color: var(--budget-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .catalog-container {
+            max-width: 1200px;
+            margin: 0 auto 60px;
+            padding: 0 20px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 50px;
+        }
+
+        .catalog-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .catalog-header h2 { font-size: 24px; font-weight: 800; margin: 0; color: var(--text-main); }
+        .catalog-header p { color: var(--text-muted); font-size: 14px; margin-top: 8px; }
+
+        .search-container {
+            max-width: 600px;
+            margin: 0 auto 40px auto;
+        }
+
+        .search-bar {
+            width: 100%;
+            padding: 15px;
+            background: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 16px;
+            box-sizing: border-box; 
+        }
+
+        .search-bar:focus { outline: none; border-color: var(--accent); }
+
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .catalog-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .catalog-card-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            pointer-events: none;
+        }
+
+        .catalog-card:active {
+            cursor: grabbing;
+            opacity: 0.8;
+            transform: scale(0.95);
+        }
+
+        .catalog-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.6);
+            border-color: var(--text-muted);
+        }
+
+        .catalog-card img {
+            width: 50px;
+            height: 50px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1px solid var(--border-color);
+            background: #222;
+        }
+
+        .catalog-info { display: flex; flex-direction: column; overflow: hidden; }
+        .catalog-name { font-size: 15px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
+        
+        /* Informações visuais do Tier e Pontos na vitrine */
+        .catalog-stats { font-size: 12px; color: var(--text-muted); }
+        .tier-badge { font-weight: bold; margin-right: 5px; }
+        .pts-badge { color: var(--budget-color); }
+
+        .catalog-card.hidden { display: none !important; }
+
+        /* Estilo para itens Muito Caros / Bloqueados */
+        .catalog-card.disabled {
+            opacity: 0.3;
+            pointer-events: none; /* Desativa o clique/arraste */
+            filter: grayscale(100%);
+            border-color: #222;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2>Underground Fighting Arena</h2>
+        <h1>Lobby Oficial — Modo 3x3</h1>
+    </header>
+
+    <div class="lobby-container">
+        <!-- Time Azul -->
+        <div class="team-column" id="team-blue" data-budget="11">
+            <div class="team-header-container team-blue-header">
+                <div class="team-name">Time Azul</div>
+                <div class="team-budget">Pontos Disponíveis: <span class="budget-value">11</span></div>
+            </div>
+            
+            <div class="player-card dropzone" id="slot-1" data-cost="0">
+                <div class="player-info">
+                    <div class="player-label">Jogador 1</div>
+                    <button class="remove-gear-btn" onclick="removeGear('slot-1')">Remover</button>
+                </div>
+                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
+            </div>
+            <div class="player-card dropzone" id="slot-2" data-cost="0">
+                <div class="player-info">
+                    <div class="player-label">Jogador 2</div>
+                    <button class="remove-gear-btn" onclick="removeGear('slot-2')">Remover</button>
+                </div>
+                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
+            </div>
+            <div class="player-card dropzone" id="slot-3" data-cost="0">
+                <div class="player-info">
+                    <div class="player-label">Jogador 3</div>
+                    <button class="remove-gear-btn" onclick="removeGear('slot-3')">Remover</button>
+                </div>
+                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
+            </div>
+        </div>
+
+        <!-- Time Vermelho -->
+        <div class="team-column" id="team-red" data-budget="11">
+            <div class="team-header-container team-red-header">
+                <div class="team-name">Time Vermelho</div>
+                <div class="team-budget">Pontos Disponíveis: <span class="budget-value">11</span></div>
+            </div>
+            
+            <div class="player-card dropzone" id="slot-4" data-cost="0">
+                <div class="player-info">
+                    <div class="player-label">Jogador 4</div>
+                    <button class="remove-gear-btn" onclick="removeGear('slot-4')">Remover</button>
+                </div>
+                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
+            </div>
+            <div class="player-card dropzone" id="slot-5" data-cost="0">
+                <div class="player-info">
+                    <div class="player-label">Jogador 5</div>
+                    <button class="remove-gear-btn" onclick="removeGear('slot-5')">Remover</button>
+                </div>
+                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
+            </div>
+            <div class="player-card dropzone" id="slot-6" data-cost="0">
+                <div class="player-info">
+                    <div class="player-label">Jogador 6</div>
+                    <button class="remove-gear-btn" onclick="removeGear('slot-6')">Remover</button>
+                </div>
+                <div class="gear-btn"><div class="gear-btn-content">Arraste um acessório aqui...</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Catálogo de Acessórios para Pesquisa e Arraste -->
+    <div class="catalog-container">
+        <div class="catalog-header">
+            <h2>Arsenal Oficial de Acessórios</h2>
+            <p>Arraste o item para o jogador. Controle o Orçamento de 11 Pontos da sua equipe.</p>
+        </div>
+        
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Buscar acessório..." onkeyup="filterGears()">
+        </div>
+
+        <div class="catalog-grid" id="catalogGrid"></div>
+    </div>
+
+    <script>
+        const maxBudget = 11;
+        let currentDragItemCost = 0;
+        let currentDragTargetTeam = null;
+
+        // Base de Dados processada a partir do seu arquivo oficial (XML/CSV)
+        const gearDatabase = [
+            { name: "Vanglorious Lucifer", image: "https://ga2dojo.wiki.gg/images/Lucifer%27s_Arrogance.png?440ab3", tier: "SS", points: 6 },
+            { name: "Satanic Glimpse", image: "https://ga2dojo.wiki.gg/images/Satanic_Glimpse.png", tier: "SS", points: 6 },
+            { name: "Amped Badge", image: "https://ga2dojo.wiki.gg/images/Amped_Badge.png", tier: "C", points: 2 },
+            { name: "Dragon Claws", image: "https://ga2dojo.wiki.gg/images/Dragon_Claws-New.png", tier: "B", points: 3 },
+            { name: "Freezing Bracelet", image: "https://ga2dojo.wiki.gg/images/Freezing_Bracelet.png", tier: "C", points: 2 },
+            { name: "Basketball Shoes", image: "https://ga2dojo.wiki.gg/images/Basketball_Shoes.png", tier: "C", points: 2 },
+            { name: "Spiked Shoes", image: "https://ga2dojo.wiki.gg/images/Spiked_Shoes.png", tier: "C", points: 2 },
+            { name: "Superior Shoes", image: "https://ga2dojo.wiki.gg/images/Superior_Shoes.png", tier: "C", points: 2 },
+            { name: "Impact Gloves", image: "https://ga2dojo.wiki.gg/images/Impact_Gloves.png", tier: "C", points: 2 },
+            { name: "Basho Fan", image: "https://ga2dojo.wiki.gg/images/Basho_Fan.png", tier: "C", points: 2 },
+            { name: "Taekwondo Cross", image: "https://ga2dojo.wiki.gg/images/Taekwondo_Cross.png", tier: "C", points: 2 },
+            { name: "Papillon Wings", image: "https://ga2dojo.wiki.gg/images/Papillon_Wing.png", tier: "C", points: 2 },
+            { name: "Fire Cross", image: "https://ga2dojo.wiki.gg/images/Fire_Cross.png", tier: "C", points: 2 },
+            { name: "Chinese Spear", image: "https://ga2dojo.wiki.gg/images/Chinese_Spear.png", tier: "C", points: 2 },
+            { name: "Combat Weapon", image: "https://ga2dojo.wiki.gg/images/Combat_Weapon.png", tier: "C", points: 2 },
+            { name: "Great Horn", image: "https://ga2dojo.wiki.gg/images/Great_Horn.png", tier: "C", points: 2 },
+            { name: "Muscle Belt", image: "https://ga2dojo.wiki.gg/images/Muscle_Belt.png", tier: "C", points: 2 },
+            { name: "Arm Blaster", image: "https://ga2dojo.wiki.gg/images/Arm_Blaster.png", tier: "C", points: 2 },
+            { name: "Energy Shield", image: "https://ga2dojo.wiki.gg/images/Energy_Shield.png", tier: "C", points: 2 },
+            { name: "Thunder Tambourine", image: "https://ga2dojo.wiki.gg/images/Thunder_Tambourine.png", tier: "C", points: 2 },
+            { name: "God's Hand", image: "https://ga2dojo.wiki.gg/images/God%27s_Hand.png", tier: "B", points: 3 },
+            { name: "Amigo Club", image: "https://ga2dojo.wiki.gg/images/Amigo_Club.png", tier: "C", points: 2 },
+            { name: "Ninja Nova", image: "https://ga2dojo.wiki.gg/images/Ninja_Nova.png", tier: "C", points: 2 },
+            { name: "Angelic Ring", image: "https://ga2dojo.wiki.gg/images/Angelic_Ring.png", tier: "C", points: 2 },
+            { name: "Petite Devil Set", image: "https://ga2dojo.wiki.gg/images/Petit_Devil_Set.png", tier: "C", points: 2 },
+            { name: "Mysterious Horn", image: "https://ga2dojo.wiki.gg/images/Mysterious_Horn.png", tier: "C", points: 2 },
+            { name: "Power Arms", image: "https://ga2dojo.wiki.gg/images/Power_Arm.png", tier: "C", points: 2 },
+            { name: "Thunder Cross", image: "https://ga2dojo.wiki.gg/images/Thunder_Cross.png", tier: "SS", points: 6 },
+            { name: "Spring Shoes", image: "https://ga2dojo.wiki.gg/images/Spring_Shoes.png", tier: "B", points: 3 },
+            { name: "Axel Blade", image: "https://ga2dojo.wiki.gg/images/Axel_Blade.png", tier: "C", points: 2 },
+            { name: "Justice Cape", image: "https://ga2dojo.wiki.gg/images/Justice_Cape.png", tier: "C", points: 2 },
+            { name: "Taekwondo Master Cross", image: "https://ga2dojo.wiki.gg/images/Taekwondo_Master_Cross.png", tier: "B", points: 3 },
+            { name: "Frost Hoverboard", image: "https://ga2dojo.wiki.gg/images/Frost_Hoverboard.png", tier: "B", points: 3 },
+            { name: "Titan Device", image: "https://ga2dojo.wiki.gg/images/Titan_Device.png", tier: "C", points: 2 },
+            { name: "MF Protector", image: "https://ga2dojo.wiki.gg/images/MF_Protector.png", tier: "C", points: 2 },
+            { name: "Isa Niflheimr", image: "https://ga2dojo.wiki.gg/images/Isa_Niflheimr.png", tier: "SS", points: 6 },
+            { name: "Powerful Drill", image: "https://ga2dojo.wiki.gg/images/Powerful_Drill.png", tier: "C", points: 2 },
+            { name: "Genius Glasses", image: "https://ga2dojo.wiki.gg/images/Genius_Glasses.png", tier: "C", points: 2 },
+            { name: "Element Bangle", image: "https://ga2dojo.wiki.gg/images/Element_Bangle.png", tier: "A", points: 4 },
+            { name: "Grenade Pouch", image: "https://ga2dojo.wiki.gg/images/Grenade_Pouch.png", tier: "C", points: 2 },
+            { name: "Cursed Cross", image: "https://ga2dojo.wiki.gg/images/Cursed_Cross.png", tier: "B", points: 3 },
+            { name: "Ninja Gauntlet", image: "https://ga2dojo.wiki.gg/images/Ninja_Gauntlet.png", tier: "B", points: 3 },
+            { name: "Thai Boxing Set", image: "https://ga2dojo.wiki.gg/images/Thai_Boxing_Set.png", tier: "B", points: 3 },
+            { name: "Valiant Shield", image: "https://ga2dojo.wiki.gg/images/Valiant-Fix.png", tier: "C", points: 2 },
+            { name: "Distortion Guitar", image: "https://ga2dojo.wiki.gg/images/Distortion_Guitar.png", tier: "C", points: 2 },
+            { name: "Umbrella -Savage Moon-", image: "https://ga2dojo.wiki.gg/images/Umbrella_Savage_Moon.png", tier: "A", points: 4 },
+            { name: "Garuda Wing", image: "https://ga2dojo.wiki.gg/images/Garuda_Wing.png", tier: "C", points: 2 },
+            { name: "Beam Knife", image: "https://ga2dojo.wiki.gg/images/Beam_Knife-New.png", tier: "B", points: 3 },
+            { name: "Artemis Arrow", image: "https://ga2dojo.wiki.gg/images/Artemis_Arrow.png", tier: "A", points: 4 },
+            { name: "Fancy Cat", image: "https://ga2dojo.wiki.gg/images/Fancy_Cat.png", tier: "A", points: 4 },
+            { name: "Grappler Arm", image: "https://ga2dojo.wiki.gg/images/Grappler_Arm.png", tier: "A", points: 4 },
+            { name: "Lion Mask", image: "https://ga2dojo.wiki.gg/images/Lion_Mask.png", tier: "C", points: 2 },
+            { name: "Pretty Pan", image: "https://ga2dojo.wiki.gg/images/Pretty_Pan.png", tier: "C", points: 2 },
+            { name: "Woden Save", image: "https://ga2dojo.wiki.gg/images/Woden_Save.png", tier: "B", points: 3 },
+            { name: "Wired Arms", image: "https://ga2dojo.wiki.gg/images/Wired_Arm.png", tier: "A", points: 4 },
+            { name: "Heaven God's Hand", image: "https://ga2dojo.wiki.gg/images/Heaven%27s_God_Hand.png", tier: "S", points: 5 },
+            { name: "Mantis Sickle", image: "https://ga2dojo.wiki.gg/images/Mantis_Sickle.png", tier: "S", points: 5 },
+            { name: "Ruban de Parasol", image: "https://ga2dojo.wiki.gg/images/Ruban_de_Parasol.png", tier: "B", points: 3 },
+            { name: "Celestial Robe", image: "https://ga2dojo.wiki.gg/images/Celestial_Robe.png", tier: "B", points: 3 },
+            { name: "Twin Detonator", image: "https://ga2dojo.wiki.gg/images/Twin_Detonators.png", tier: "B", points: 3 },
+            { name: "Summer Float", image: "https://ga2dojo.wiki.gg/images/Summer_Float.png", tier: "C", points: 2 },
+            { name: "Venom Rod", image: "https://ga2dojo.wiki.gg/images/Venom_Rod.png", tier: "C", points: 2 },
+            { name: "Full Metal Walker", image: "https://ga2dojo.wiki.gg/images/Full_Metal_Walker.png", tier: "B", points: 3 },
+            { name: "Ardent Hammer", image: "https://ga2dojo.wiki.gg/images/Ardent_Hammer.png", tier: "C", points: 2 },
+            { name: "Flying Treasure Sword", image: "https://ga2dojo.wiki.gg/images/Flying_Treasure_Sword.png", tier: "S", points: 5 },
+            { name: "Sonic Arms", image: "https://ga2dojo.wiki.gg/images/Sonic_Arms.png", tier: "S", points: 5 },
+            { name: "Axel Gear Blade", image: "https://ga2dojo.wiki.gg/images/Axel_Gear_Blade.png", tier: "B", points: 3 },
+            { name: "Icicle Wand", image: "https://ga2dojo.wiki.gg/images/Icicle_Wand.png", tier: "C", points: 2 },
+            { name: "Gabriel's Wing", image: "https://ga2dojo.wiki.gg/images/Gabriel_Wing.png", tier: "B", points: 3 },
+            { name: "Prominence Cross", image: "https://ga2dojo.wiki.gg/images/Prominence_Cross.png", tier: "B", points: 3 },
+            { name: "Dyno Fang Mace", image: "https://ga2dojo.wiki.gg/images/Dyno_Fang_Mace.png", tier: "B", points: 3 },
+            { name: "Graviton Cannon", image: "https://ga2dojo.wiki.gg/images/Graviton_Cannon.png", tier: "B", points: 3 },
+            { name: "Arabesque Swan", image: "https://ga2dojo.wiki.gg/images/Arabesque_Swan.png", tier: "C", points: 2 },
+            { name: "Tiny Bunny Doll", image: "https://ga2dojo.wiki.gg/images/Tiny_Bunny_Doll.png", tier: "A", points: 4 },
+            { name: "Beelzebub Cloak", image: "https://ga2dojo.wiki.gg/images/Beelzebub_Cloak.png", tier: "SS", points: 6 },
+            { name: "Sun Ring", image: "https://ga2dojo.wiki.gg/images/Sun_Ring.png", tier: "S", points: 5 },
+            { name: "Innocent Word", image: "https://ga2dojo.wiki.gg/images/Innocent_Word.png", tier: "C", points: 2 },
+            { name: "Wu Xing Gauntlet", image: "https://ga2dojo.wiki.gg/images/Wu_Xing_Gauntlet.png", tier: "A", points: 4 },
+            { name: "Secret Case", image: "https://ga2dojo.wiki.gg/images/Secret_Case.png", tier: "A", points: 4 },
+            { name: "Demolition Guitar", image: "https://ga2dojo.wiki.gg/images/Demolition_Guitar.png", tier: "B", points: 3 },
+            { name: "Twin Blade -Moon-", image: "https://ga2dojo.wiki.gg/images/Twin_Blade_Moon.png", tier: "S", points: 5 },
+            { name: "Doctor's Needle", image: "https://ga2dojo.wiki.gg/images/Doctor%27s_Needle.png", tier: "C", points: 2 },
+            { name: "Duel Gladia", image: "https://ga2dojo.wiki.gg/images/Duel_Gladia.png", tier: "A", points: 4 },
+            { name: "Snowman Costume", image: "https://ga2dojo.wiki.gg/images/Snowman_Costume.png", tier: "C", points: 2 },
+            { name: "Dimension Flyer", image: "https://ga2dojo.wiki.gg/images/Dimension_Flyer.png", tier: "B", points: 3 },
+            { name: "Sealing Staff", image: "https://ga2dojo.wiki.gg/images/Sealing_Staff.png", tier: "C", points: 2 },
+            { name: "Light Serpent", image: "https://ga2dojo.wiki.gg/images/Light_Serpent.png", tier: "B", points: 3 },
+            { name: "Blossom Fan", image: "https://ga2dojo.wiki.gg/images/Blossom_Fan.png", tier: "C", points: 2 },
+            { name: "Sacrifice Reaper", image: "https://ga2dojo.wiki.gg/images/Sacrifice_Reaper.png", tier: "A", points: 4 },
+            { name: "Bullet Note", image: "https://ga2dojo.wiki.gg/images/Bullet_Note.png", tier: "B", points: 3 },
+            { name: "Raging Giga Drill", image: "https://ga2dojo.wiki.gg/images/Raging_Giga_Drill.png", tier: "B", points: 3 },
+            { name: "Vortex Wheel", image: "https://ga2dojo.wiki.gg/images/Vortex_Wheel.png", tier: "C", points: 2 },
+            { name: "Red Dragon Tonfa", image: "https://ga2dojo.wiki.gg/images/Red_Dragon_Tonfa.png", tier: "C", points: 2 },
+            { name: "Photon Extender", image: "https://ga2dojo.wiki.gg/images/Photon_Extender.png", tier: "A", points: 4 },
+            { name: "Electro Device", image: "https://ga2dojo.wiki.gg/images/Electro_Devicer.png", tier: "B", points: 3 },
+            { name: "Mystic Broom", image: "https://ga2dojo.wiki.gg/images/Mystic_Broom.png", tier: "C", points: 2 },
+            { name: "Wind Cross", image: "https://ga2dojo.wiki.gg/images/Wind_Cross.png", tier: "B", points: 3 },
+            { name: "Deity's Crystal", image: "https://ga2dojo.wiki.gg/images/Deity%27s_Crystal.png", tier: "C", points: 2 },
+            { name: "Jeanne Chevalier", image: "https://ga2dojo.wiki.gg/images/Jeanne_Chevalier.png", tier: "S", points: 5 },
+            { name: "Lichten Warter", image: "https://ga2dojo.wiki.gg/images/Lichten_Warter.png", tier: "S", points: 5 },
+            { name: "Cheering Pom", image: "https://ga2dojo.wiki.gg/images/Cheering_Poms.png", tier: "B", points: 3 },
+            { name: "Phantom Knot", image: "https://ga2dojo.wiki.gg/images/Phantom_Knot.png", tier: "B", points: 3 },
+            { name: "Engage Bouquet", image: "https://ga2dojo.wiki.gg/images/Engage_Bouquet.png", tier: "C", points: 2 },
+            { name: "Soldier Gadget", image: "https://ga2dojo.wiki.gg/images/Soldier_Gadget.png", tier: "B", points: 3 },
+            { name: "Soccer/Striker Ball", image: "https://ga2dojo.wiki.gg/images/Soccer_Ball.png", tier: "C", points: 2 },
+            { name: "Nunchauks of Gale", image: "https://ga2dojo.wiki.gg/images/Nunchak_of_Gale.png", tier: "B", points: 3 },
+            { name: "Jack Mirage", image: "https://ga2dojo.wiki.gg/images/Jack_Mirage.png", tier: "B", points: 3 },
+            { name: "Wing of Sacred Flame", image: "https://ga2dojo.wiki.gg/images/Wing_of_Sacred_Flame.png", tier: "B", points: 3 },
+            { name: "Ocean Harp", image: "https://ga2dojo.wiki.gg/images/Ocean_Harp.png", tier: "B", points: 3 },
+            { name: "Black Blade - Mumyo Shikkoku", image: "https://ga2dojo.wiki.gg/images/Black_Blade.png", tier: "B", points: 3 },
+            { name: "Lucha de Arte", image: "https://ga2dojo.wiki.gg/images/Lucha_de_Arte.png", tier: "B", points: 3 },
+            { name: "White Tiger Icicle Claws", image: "https://ga2dojo.wiki.gg/images/White_Tiger_Icicle_Claw.png", tier: "A", points: 4 },
+            { name: "Driving/Tennis Racket", image: "https://ga2dojo.wiki.gg/images/Driving_Racket-Fix.png", tier: "B", points: 3 },
+            { name: "Golden Cudgel of Blue Sky", image: "https://ga2dojo.wiki.gg/images/Golden_Cudgel_of_Blue_Sky.png", tier: "A", points: 4 },
+            { name: "Energy Pack", image: "https://ga2dojo.wiki.gg/images/Energy_Pack.png", tier: "B", points: 3 },
+            { name: "Dragon Whisker Whip", image: "https://ga2dojo.wiki.gg/images/Dragon_Whisker_Whip.png", tier: "C", points: 2 },
+            { name: "Mighty Fang of Water Blue Dragon", image: "https://ga2dojo.wiki.gg/images/Mighty_Fang_of_Water_Blue_Dragon.png", tier: "B", points: 3 },
+            { name: "Hunting Tool", image: "https://ga2dojo.wiki.gg/images/Hunting_Tool.png", tier: "C", points: 2 },
+            { name: "Guard Shell of the Stone Tortoise", image: "https://ga2dojo.wiki.gg/images/Guard_Shell_of_Stone_Tortoise.png", tier: "A", points: 4 },
+            { name: "Brave Fencer", image: "https://ga2dojo.wiki.gg/images/Brave_Fencer.png", tier: "S", points: 5 },
+            { name: "Dr. Armstrong", image: "https://ga2dojo.wiki.gg/images/Dr_Armstrong.png", tier: "A", points: 4 },
+            { name: "Tactical Gloves", image: "https://ga2dojo.wiki.gg/images/Tactical_Glove.png", tier: "B", points: 3 },
+            { name: "Dis Pater", image: "https://ga2dojo.wiki.gg/images/Dis_Pater.png", tier: "B", points: 3 },
+            { name: "Adventure Pack", image: "https://ga2dojo.wiki.gg/images/Adventure_Pack.png", tier: "B", points: 3 },
+            { name: "Imperial War Flag", image: "https://ga2dojo.wiki.gg/images/Imperial_War_Flag.png", tier: "C", points: 2 },
+            { name: "Exorcist's Talisman", image: "https://ga2dojo.wiki.gg/images/Exorcist_Talisman.png", tier: "B", points: 3 },
+            { name: "MF-AR2", image: "https://ga2dojo.wiki.gg/images/MF-AR2.png", tier: "A", points: 4 },
+            { name: "Bladed Flames -Senshin-", image: "https://ga2dojo.wiki.gg/images/Bladed_Flames_Senshin.png", tier: "A", points: 4 },
+            { name: "Drunken Dragon", image: "https://ga2dojo.wiki.gg/images/Drunken_Dragon.png", tier: "B", points: 3 },
+            { name: "Areadbhar", image: "https://ga2dojo.wiki.gg/images/Areadbhar.png", tier: "B", points: 3 },
+            { name: "Jyuzu-maru -Kanetsugu-", image: "https://ga2dojo.wiki.gg/images/Jyuzu-maru.png", tier: "S", points: 5 },
+            { name: "Tachyon Bracelet", image: "https://ga2dojo.wiki.gg/images/Tachyon_Bracelet.png", tier: "B", points: 3 },
+            { name: "Hexenmesser", image: "https://ga2dojo.wiki.gg/images/Hexenmesser.png", tier: "A", points: 4 },
+            { name: "Tyranstahl", image: "https://ga2dojo.wiki.gg/images/Tyranstahl.png", tier: "A", points: 4 },
+            { name: "Ignis Wand", image: "https://ga2dojo.wiki.gg/images/Ignis_Wand.png", tier: "B", points: 3 },
+            { name: "Miracle Transforming Stick", image: "https://ga2dojo.wiki.gg/images/Miracle_Transforming_Stick.png", tier: "A", points: 4 },
+            { name: "Mustang Thruster", image: "https://ga2dojo.wiki.gg/images/Mustang_Thruster.png", tier: "C", points: 2 },
+            { name: "Sumou Tenka", image: "https://ga2dojo.wiki.gg/images/Sumou_Tenka.png", tier: "S", points: 5 },
+            { name: "Skull's Pledge", image: "https://ga2dojo.wiki.gg/images/Skull%27s_Pledge.png", tier: "B", points: 3 },
+            { name: "Arm of Fafnir", image: "https://ga2dojo.wiki.gg/images/Arm_of_Fafnir.png", tier: "A", points: 4 },
+            { name: "Schelmischer Freund", image: "https://ga2dojo.wiki.gg/images/Schelmischer_Freund.png", tier: "B", points: 3 },
+            { name: "Apollyon Wings", image: "https://ga2dojo.wiki.gg/images/Apollyon_Wing.png", tier: "B", points: 3 },
+            { name: "Twin Edge -Warbler-", image: "https://ga2dojo.wiki.gg/images/Twin_Edge_Warbler.png", tier: "B", points: 3 },
+            { name: "Wonder Clown", image: "https://ga2dojo.wiki.gg/images/Wonder_Clown.png", tier: "B", points: 3 },
+            { name: "Gravity Armlet", image: "https://ga2dojo.wiki.gg/images/Gravity_Armlet.png", tier: "B", points: 3 },
+            { name: "Black Rain", image: "https://ga2dojo.wiki.gg/images/Black_Rain.png", tier: "A", points: 4 },
+            { name: "Trance Wheel", image: "https://ga2dojo.wiki.gg/images/Trance_Wheel.png", tier: "B", points: 3 },
+            { name: "Ancient Deity Kyu-bi", image: "https://ga2dojo.wiki.gg/images/Ancient_Deity_Kyu-bi.png", tier: "B", points: 3 },
+            { name: "Sun System", image: "https://ga2dojo.wiki.gg/images/Sun_System.png", tier: "B", points: 3 },
+            { name: "Stardust Wand", image: "https://ga2dojo.wiki.gg/images/Stardust_Wand.png", tier: "B", points: 3 },
+            { name: "Mermaid Fin", image: "https://ga2dojo.wiki.gg/images/Mermaid_Fin.png", tier: "C", points: 2 },
+            { name: "Belphegor's Horn", image: "https://ga2dojo.wiki.gg/images/Belphegor_Horn.png", tier: "A", points: 4 },
+            { name: "Gale Armor", image: "https://ga2dojo.wiki.gg/images/Gale_Armor.png", tier: "A", points: 4 },
+            { name: "Unicorn Beetle", image: "https://ga2dojo.wiki.gg/images/Unicorn_Beetle.png", tier: "B", points: 3 },
+            { name: "Stag Beetle", image: "https://ga2dojo.wiki.gg/images/Stag_Beetle.png", tier: "B", points: 3 },
+            { name: "Festival Barrel", image: "https://ga2dojo.wiki.gg/images/Festival_Barrel.png", tier: "B", points: 3 },
+            { name: "Honey Bee", image: "https://ga2dojo.wiki.gg/images/Honey_Bee.png", tier: "B", points: 3 },
+            { name: "Scarlet Rampage", image: "https://ga2dojo.wiki.gg/images/Scarlet_Rampage.png", tier: "A", points: 4 },
+            { name: "Magical Bangles", image: "https://ga2dojo.wiki.gg/images/Mystical_Bangle.png", tier: "B", points: 3 },
+            { name: "Ignition Chaser", image: "https://ga2dojo.wiki.gg/images/Ignition_Chaser.png", tier: "B", points: 3 },
+            { name: "Capoeira Cordao", image: "https://ga2dojo.wiki.gg/images/Capoeira_Cordao.png", tier: "A", points: 4 },
+            { name: "Sealing Swords -Dancing Blade-", image: "https://ga2dojo.wiki.gg/images/Sealing_Swords_Dancing_Blades.png", tier: "S", points: 5 },
+            { name: "Exotic Summoner's Drum", image: "https://ga2dojo.wiki.gg/images/Exotic_Summoner%27s_Drum.png", tier: "B", points: 3 },
+            { name: "Midnight Ruler", image: "https://ga2dojo.wiki.gg/images/Midnight_Ruler.png", tier: "S", points: 5 },
+            { name: "The Zodiac -Libra-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Libra.png", tier: "B", points: 3 },
+            { name: "Gigantic Arms", image: "https://ga2dojo.wiki.gg/images/Gigantic_Arms.png", tier: "A", points: 4 },
+            { name: "Gentlemen's Attire", image: "https://ga2dojo.wiki.gg/images/Gentleman%27s_Attire.png", tier: "B", points: 3 },
+            { name: "Guardian Dragon", image: "https://ga2dojo.wiki.gg/images/Guardian_Dragon.png", tier: "S", points: 5 },
+            { name: "Crimson Edge", image: "https://ga2dojo.wiki.gg/images/Crimson_Edge.png", tier: "A", points: 4 },
+            { name: "The Zodiac -Scorpio-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Scorpio.png", tier: "A", points: 4 },
+            { name: "Remote Demolisher", image: "https://ga2dojo.wiki.gg/images/Remote_Demolisher.png", tier: "B", points: 3 },
+            { name: "Force Remover", image: "https://ga2dojo.wiki.gg/images/Force_Remover.png", tier: "A", points: 4 },
+            { name: "Dragonic Naginata", image: "https://ga2dojo.wiki.gg/images/Dragonic_Naginata.png", tier: "SS", points: 6 },
+            { name: "The Zodiac -Sagittarius-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Sagittarius.png", tier: "B", points: 3 },
+            { name: "Saint Cross", image: "https://ga2dojo.wiki.gg/images/Saint_Cross.png", tier: "A", points: 4 },
+            { name: "The Zodiac -Capricorn-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Capricorn.png", tier: "S", points: 5 },
+            { name: "Moon Blade -Munechika-", image: "https://ga2dojo.wiki.gg/images/Moon_Blade_Munechika.png", tier: "S", points: 5 },
+            { name: "Prussian Kaiser", image: "https://ga2dojo.wiki.gg/images/Prussian_Kaiser.png", tier: "A", points: 4 },
+            { name: "Espada Energia", image: "https://ga2dojo.wiki.gg/images/Espada_Energia.png", tier: "S", points: 5 },
+            { name: "Mephistos Folter", image: "https://ga2dojo.wiki.gg/images/Mephistos_Folter.png", tier: "A", points: 4 },
+            { name: "The Zodiac -Aquarius-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Aquarius.png", tier: "A", points: 4 },
+            { name: "Tausend Söldner", image: "https://ga2dojo.wiki.gg/images/Tausend_S%C3%B6ldner.png", tier: "A", points: 4 },
+            { name: "Perkunas Wand", image: "https://ga2dojo.wiki.gg/images/Perkunas_Wand.png", tier: "B", points: 3 },
+            { name: "Dulce Trahison", image: "https://ga2dojo.wiki.gg/images/Dulce_Trahison.png", tier: "B", points: 3 },
+            { name: "The Zodiac -Pisces-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Pisces.png", tier: "B", points: 3 },
+            { name: "Allelism Wings", image: "https://ga2dojo.wiki.gg/images/Allelism_Wings.png", tier: "B", points: 3 },
+            { name: "Necromancer's Armlet", image: "https://ga2dojo.wiki.gg/images/Necromancer_Armlets.png", tier: "B", points: 3 },
+            { name: "Glacial Cavalier", image: "https://ga2dojo.wiki.gg/images/Glacial_Cavalier.png", tier: "A", points: 4 },
+            { name: "Western Holster", image: "https://ga2dojo.wiki.gg/images/Western_Holster.png", tier: "A", points: 4 },
+            { name: "Iron Maiden", image: "https://ga2dojo.wiki.gg/images/Iron_Maiden.png", tier: "B", points: 3 },
+            { name: "The Zodiac -Aries-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Aries.png", tier: "B", points: 3 },
+            { name: "Dual Resonance", image: "https://ga2dojo.wiki.gg/images/Dual_Resonance.png", tier: "A", points: 4 },
+            { name: "Karate Master", image: "https://ga2dojo.wiki.gg/images/Karate_Master.png", tier: "B", points: 3 },
+            { name: "The Zodiac -Taurus-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Taurus.png", tier: "A", points: 4 },
+            { name: "Baldanders' Demon Staff", image: "https://ga2dojo.wiki.gg/images/Baldanders%27_Demon_Staff.png", tier: "B", points: 3 },
+            { name: "Chemical Warfare", image: "https://ga2dojo.wiki.gg/images/Chemical_Warfare.png", tier: "B", points: 3 },
+            { name: "7 Elemental Greatsword", image: "https://ga2dojo.wiki.gg/images/7_Elemental_Greatsword.png", tier: "A", points: 4 },
+            { name: "Photon Riser", image: "https://ga2dojo.wiki.gg/images/Photon_Riser.png", tier: "A", points: 4 },
+            { name: "Punish Doll", image: "https://ga2dojo.wiki.gg/images/Punish_Doll.png", tier: "A", points: 4 },
+            { name: "Otenta Blade -Mitsuyo-", image: "https://ga2dojo.wiki.gg/images/Otenta_Blade_Mitsuyo.png", tier: "S", points: 5 },
+            { name: "The Zodiac -Gemini-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Gemini.png", tier: "B", points: 3 },
+            { name: "Mini Gazer", image: "https://ga2dojo.wiki.gg/images/Mini_Gazer.png", tier: "B", points: 3 },
+            { name: "Malice Denial", image: "https://ga2dojo.wiki.gg/images/Malice_Denial.png", tier: "A", points: 4 },
+            { name: "Nidhoggr's Flower", image: "https://ga2dojo.wiki.gg/images/Nidhoggr%27s_Flower.png", tier: "A", points: 4 },
+            { name: "The Zodiac -Cancer-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Cancer.png", tier: "B", points: 3 },
+            { name: "Water Gun", image: "https://ga2dojo.wiki.gg/images/Water_Gun.png", tier: "B", points: 3 },
+            { name: "Fan Flower", image: "https://ga2dojo.wiki.gg/images/Fan_Flower.png", tier: "C", points: 2 },
+            { name: "Bomber Gear", image: "https://ga2dojo.wiki.gg/images/Bomber_Gear.png", tier: "C", points: 2 },
+            { name: "Pretty Costume -Penguin-", image: "https://ga2dojo.wiki.gg/images/Pretty_Costume_Penguin.png", tier: "A", points: 4 },
+            { name: "Sacred Edge", image: "https://ga2dojo.wiki.gg/images/Sacred_Edge.png", tier: "S", points: 5 },
+            { name: "Pirate Captain", image: "https://ga2dojo.wiki.gg/images/Pirates_Captain.png", tier: "S", points: 5 },
+            { name: "The Zodiac -Leo-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Leo.png", tier: "B", points: 3 },
+            { name: "Thunderbolt Striker", image: "https://ga2dojo.wiki.gg/images/Thunderbolt_Striker.png", tier: "A", points: 4 },
+            { name: "Posideon's Trident", image: "https://ga2dojo.wiki.gg/images/Poseidon%27s_Trident.png", tier: "B", points: 3 },
+            { name: "Infernal Chakram", image: "https://ga2dojo.wiki.gg/images/Infernal_Chakram.png", tier: "S", points: 5 },
+            { name: "The Zodiac -Virgo-", image: "https://ga2dojo.wiki.gg/images/The_Zodiac_Virgo.png", tier: "A", points: 4 },
+            { name: "Jiangshi Raiments", image: "https://ga2dojo.wiki.gg/images/Jiangshi_Raiments.png", tier: "A", points: 4 },
+            { name: "Alastor's Rage", image: "https://ga2dojo.wiki.gg/images/Alastor%27s_Rage.png", tier: "S", points: 5 },
+            { name: "Pile Driver Punisher", image: "https://ga2dojo.wiki.gg/images/Pile_Driver_Punisher.png", tier: "A", points: 4 },
+            { name: "Blanc Vertu", image: "https://ga2dojo.wiki.gg/images/Blanc_Vertu.png", tier: "B", points: 3 },
+            { name: "Assault Jetpack", image: "https://ga2dojo.wiki.gg/images/Assault_Jetpack.png", tier: "A", points: 4 },
+            { name: "Great Bamboo Sword", image: "https://ga2dojo.wiki.gg/images/Great_Bamboo_Sword.png", tier: "SS", points: 6 },
+            { name: "Spectral Dragon's Talon", image: "https://ga2dojo.wiki.gg/images/Spectral_Dragon_Talon.png", tier: "A", points: 4 },
+            { name: "Raging Grace", image: "https://ga2dojo.wiki.gg/images/Raging_Grace.png", tier: "A", points: 4 },
+            { name: "Ethnic Bolo", image: "https://ga2dojo.wiki.gg/images/Ethnic_Bolo.png", tier: "A", points: 4 },
+            { name: "Gigas Sword", image: "https://ga2dojo.wiki.gg/images/Gigas_Sword.png", tier: "A", points: 4 },
+            { name: "Electra's Crest", image: "https://ga2dojo.wiki.gg/images/Electra%27s_Crest.png", tier: "A", points: 4 },
+            { name: "Brightness Bangle", image: "https://ga2dojo.wiki.gg/images/Brightness_Bangle.png", tier: "B", points: 3 },
+            { name: "Luminous Crusade", image: "https://ga2dojo.wiki.gg/images/Luminous_Crusade.png", tier: "S", points: 5 },
+            { name: "Assassin's Kunai", image: "https://ga2dojo.wiki.gg/images/Assassin%27s_Kunai.png", tier: "S", points: 5 },
+            { name: "Swift Snatcher", image: "https://ga2dojo.wiki.gg/images/Swift_Snatcher.png", tier: "B", points: 3 },
+            { name: "Optic Trooper", image: "https://ga2dojo.wiki.gg/images/Optic_Trooper.png", tier: "A", points: 4 },
+            { name: "Black Hood -Yatagarasu-", image: "https://ga2dojo.wiki.gg/images/Black_Hood_Yatagarasu.png", tier: "S", points: 5 },
+            { name: "Blazing Arc", image: "https://ga2dojo.wiki.gg/images/Blazing_Arc.png", tier: "A", points: 4 },
+            { name: "Thanasima Kratos", image: "https://ga2dojo.wiki.gg/images/Thanasima_Kratos.png", tier: "S", points: 5 },
+            { name: "Badminton Bat", image: "https://ga2dojo.wiki.gg/images/Badmitton_Bat.png", tier: "A", points: 4 },
+            { name: "Chaos Heretic", image: "https://ga2dojo.wiki.gg/images/Chaos_Heretic.png", tier: "A", points: 4 },
+            { name: "Shekhinah", image: "https://ga2dojo.wiki.gg/images/Shekhinah.png", tier: "A", points: 4 },
+            { name: "Alchemical Metal", image: "https://ga2dojo.wiki.gg/images/Alchemical_Metal.png", tier: "B", points: 3 },
+            { name: "Mighty Fortress", image: "https://ga2dojo.wiki.gg/images/Mighty_Fortress.png", tier: "A", points: 4 },
+            { name: "Spiritual Raiments -Yamatengu-", image: "https://ga2dojo.wiki.gg/images/Spiritual_Raiments_Yamatengu.png", tier: "B", points: 3 },
+            { name: "Doujigiri Blade -Yasutsuna-", image: "https://ga2dojo.wiki.gg/images/Doujigiri_Blade.png", tier: "A", points: 4 },
+            { name: "Bloody Swell", image: "https://ga2dojo.wiki.gg/images/Bloody_Swell.png", tier: "S", points: 5 },
+            { name: "Blaster Goggles", image: "https://ga2dojo.wiki.gg/images/Blaster_Goggles.png", tier: "C", points: 2 },
+            { name: "Pretty Costume -Dragon-", image: "https://ga2dojo.wiki.gg/images/Pretty_Costume_Dragon.png", tier: "B", points: 3 },
+            { name: "Grim Grudge", image: "https://ga2dojo.wiki.gg/images/Grim_Grudge.png", tier: "A", points: 4 },
+            { name: "Demon Skulls", image: "https://ga2dojo.wiki.gg/images/Demon_Skulls.png", tier: "A", points: 4 },
+            { name: "Lance of the Falling Blossoms", image: "https://ga2dojo.wiki.gg/images/Lance_of_Falling_Blossoms.png", tier: "A", points: 4 },
+            { name: "Pretty Costume -Tanuki-", image: "https://ga2dojo.wiki.gg/images/Pretty_Costume_Tanuki.png", tier: "A", points: 4 },
+            { name: "Metamorphic Saber", image: "https://ga2dojo.wiki.gg/images/Metamorphic_Saber.png", tier: "A", points: 4 },
+            { name: "100 Ton Hammer", image: "https://ga2dojo.wiki.gg/images/100_Ton_Hammer.png", tier: "A", points: 4 },
+            { name: "Spite of Devils", image: "https://ga2dojo.wiki.gg/images/Spite_of_Devils.png", tier: "A", points: 4 },
+            { name: "Freezing Crest", image: "https://ga2dojo.wiki.gg/images/Freezing_Crest.png", tier: "C", points: 2 },
+            { name: "Brave Tiger", image: "https://ga2dojo.wiki.gg/images/Brave_Tiger.png", tier: "A", points: 4 },
+            { name: "Mega Guard", image: "https://ga2dojo.wiki.gg/images/Mega_Guard.png", tier: "A", points: 4 },
+            { name: "Ghost Blade -Shiranui-", image: "https://ga2dojo.wiki.gg/images/Ghost_Blade_Shiranui.png", tier: "SS", points: 6 },
+            { name: "Brave Bayonet", image: "https://ga2dojo.wiki.gg/images/Brave_Bayonet.png", tier: "S", points: 5 },
+            { name: "Cruel Claw", image: "https://ga2dojo.wiki.gg/images/Cruel_Claws-Fix.png", tier: "A", points: 4 },
+            { name: "Crystal Carapace", image: "https://ga2dojo.wiki.gg/images/Crystal_Carapice.png", tier: "A", points: 4 },
+            { name: "Seraphic Cross", image: "https://ga2dojo.wiki.gg/images/Seraphic_Cross.png", tier: "A", points: 4 },
+            { name: "Combat FS -Unit 00-", image: "https://ga2dojo.wiki.gg/images/Combat_Unit_FS_00.png", tier: "A", points: 4 },
+            { name: "Hatred Word", image: "https://ga2dojo.wiki.gg/images/Hatred_Word.png", tier: "A", points: 4 },
+            { name: "Greed of Mammon", image: "https://ga2dojo.wiki.gg/images/Greed_of_Mammon.png", tier: "S", points: 5 },
+            { name: "Butcher Knife", image: "https://ga2dojo.wiki.gg/images/Butcher_Knife.png", tier: "A", points: 4 },
+            { name: "Shark King's Harpoon", image: "https://ga2dojo.wiki.gg/images/Shark_King%27s_Harpoon.png", tier: "A", points: 4 },
+            { name: "Lightning Blaster", image: "https://ga2dojo.wiki.gg/images/Lightning_Blaster.png", tier: "B", points: 3 },
+            { name: "Chess Kingdom", image: "https://ga2dojo.wiki.gg/images/Chess_Kingdom.png", tier: "B", points: 3 },
+            { name: "Aegis Gauntlet", image: "https://ga2dojo.wiki.gg/images/Aegis_Gauntlet.png", tier: "B", points: 3 },
+            { name: "Laevatein", image: "https://ga2dojo.wiki.gg/images/Laevatein.png", tier: "A", points: 4 },
+            { name: "Mistral Wand", image: "https://ga2dojo.wiki.gg/images/Mistral_Wand.png", tier: "C", points: 2 },
+            { name: "Infernal Lantern", image: "https://ga2dojo.wiki.gg/images/Infernal_Lantern.png", tier: "B", points: 3 },
+            { name: "Reversal Bracelet", image: "https://ga2dojo.wiki.gg/images/Reversal_Bracelet.png", tier: "B", points: 3 },
+            { name: "Crimson Camelia", image: "https://ga2dojo.wiki.gg/images/Crimson_Camellia.png", tier: "B", points: 3 },
+            { name: "Dáinsleif", image: "https://ga2dojo.wiki.gg/images/D%C3%A1insleif.png", tier: "B", points: 3 },
+            { name: "Etiquette Fork", image: "https://ga2dojo.wiki.gg/images/Etiquette_Fork.png", tier: "B", points: 3 },
+            { name: "Pariah's Specter", image: "https://ga2dojo.wiki.gg/images/Pariah%27s_Specter.png", tier: "B", points: 3 },
+            { name: "Seeker Missiles", image: "https://ga2dojo.wiki.gg/images/Seeker_Missiles.png", tier: "C", points: 2 },
+            { name: "Vertebral Blade", image: "https://ga2dojo.wiki.gg/images/Vertebral_Blade.png", tier: "S", points: 5 },
+            { name: "Seiros Saucer", image: "https://ga2dojo.wiki.gg/images/Seiros_Saucer.png", tier: "B", points: 3 },
+            { name: "Lunatic Tears", image: "https://ga2dojo.wiki.gg/images/Lunatic_Tears.png", tier: "B", points: 3 },
+            { name: "Michael's Judgement", image: "https://ga2dojo.wiki.gg/images/Michael%27s_Judgment.png", tier: "B", points: 3 },
+            { name: "Trinity Trigger", image: "https://ga2dojo.wiki.gg/images/Trinity_Trigger-Fix.png", tier: "B", points: 3 },
+            { name: "Educational Pointer", image: "https://ga2dojo.wiki.gg/images/Educational_Pointer.png", tier: "B", points: 3 },
+            { name: "Lightning Arch", image: "https://ga2dojo.wiki.gg/images/Lightning_Arch.png", tier: "B", points: 3 },
+            { name: "Calligraphic Sage", image: "https://ga2dojo.wiki.gg/images/Calligraphic_Sage.png", tier: "A", points: 4 },
+            { name: "Ouas Scepter", image: "https://ga2dojo.wiki.gg/images/Ouas_Scepter.png", tier: "B", points: 3 },
+            { name: "Gram Splendor", image: "https://ga2dojo.wiki.gg/images/Gram_Splendor.png", tier: "A", points: 4 },
+            { name: "Kihei Poli'ahu", image: "https://ga2dojo.wiki.gg/images/Kihei_Poli%27ahu.png", tier: "B", points: 3 },
+            { name: "Lucent Savage", image: "https://ga2dojo.wiki.gg/images/Lucent_Savage.png", tier: "B", points: 3 },
+            { name: "Glacial Skates", image: "https://ga2dojo.wiki.gg/images/Glacial_Skates.png", tier: "B", points: 3 },
+            { name: "Onimaru Blade -Kunitsuna-", image: "https://ga2dojo.wiki.gg/images/Onimaru_Blade_Kunitsuna.png", tier: "B", points: 3 },
+            { name: "Excel Driller", image: "https://ga2dojo.wiki.gg/images/Excel_Driller.png", tier: "B", points: 3 },
+            { name: "Volcanic Arms", image: "https://ga2dojo.wiki.gg/images/Volcanic_Arms.png", tier: "A", points: 4 },
+            { name: "Sublime Gladius", image: "https://ga2dojo.wiki.gg/images/Sublime_Gladius.png", tier: "B", points: 3 },
+            { name: "Dreadnought", image: "https://ga2dojo.wiki.gg/images/Dreadnought.png", tier: "B", points: 3 },
+            { name: "Noble Arquebus", image: "https://ga2dojo.wiki.gg/images/Noble_Arquebus.png", tier: "C", points: 2 },
+            { name: "Summoner's Stave", image: "https://ga2dojo.wiki.gg/images/Summoners_Stave.png", tier: "A", points: 4 },
+            { name: "War Halberd -Ares-", image: "https://ga2dojo.wiki.gg/images/War_Halberd_Ares.png", tier: "B", points: 3 },
+            { name: "Mercenary Solitude", image: "https://ga2dojo.wiki.gg/images/Mercenary_Solitude.png", tier: "A", points: 4 },
+            { name: "Ophanim Wings", image: "https://ga2dojo.wiki.gg/images/Ophanim_Wing.png", tier: "C", points: 2 },
+            { name: "Grapsing Hand", image: "https://ga2dojo.wiki.gg/images/Grasping_Hand.png", tier: "A", points: 4 },
+            { name: "Howl Radiator", image: "https://ga2dojo.wiki.gg/images/Howl_Radiator.png", tier: "B", points: 3 },
+            { name: "Vicious Rhizome", image: "https://ga2dojo.wiki.gg/images/Vicious_Rhizome.png", tier: "C", points: 2 },
+            { name: "Utility Wok", image: "https://ga2dojo.wiki.gg/images/Briar_Rose.png", tier: "B", points: 3 },
+            { name: "Briar Rose", image: "https://ga2dojo.wiki.gg/images/%E7%8B%82%E8%8A%B1%E6%A1%9C%E6%9D%96.png", tier: "B", points: 3 },
+            { name: "Staff of the Flowering Blossoms", image: "https://ga2dojo.wiki.gg/images/%E7%8B%82%E8%8A%B1%E6%A1%9C%E6%9D%96.png", tier: "B", points: 3 },
+            { name: "Psychic Stiletto", image: "https://ga2dojo.wiki.gg/images/Stiletto-Fix.png", tier: "A", points: 4 },
+            { name: "Zwei Glanz", image: "https://ga2dojo.wiki.gg/images/Zwei_Glanz.png", tier: "A", points: 4 },
+            { name: "Chain Blade -Viper-", image: "https://ga2dojo.wiki.gg/images/Viper-Fix.png", tier: "B", points: 3 },
+            { name: "Barbarian Hatchet", image: "https://ga2dojo.wiki.gg/images/Hatchet-Fix.png", tier: "B", points: 3 },
+            { name: "Crush Cudgel", image: "https://ga2dojo.wiki.gg/images/Cudgel.png", tier: "B", points: 3 },
+            { name: "Phoenix Revival", image: "https://ga2dojo.wiki.gg/images/Phoenix.png", tier: "B", points: 3 },
+            { name: "Ivy Blade", image: "https://ga2dojo.wiki.gg/images/Ivy-Fix.png?38ff26", tier: "B", points: 3 },
+            { name: "Ravenous Claret", image: "https://ga2dojo.wiki.gg/images/Ravenous-Fix.png", tier: "B", points: 3 },
+            { name: "Magma Brands", image: "https://ga2dojo.wiki.gg/images/Molten.png", tier: "C", points: 2 },
+            { name: "Soccer Shoes", image: "https://ga2dojo.wiki.gg/images/Soccer-Fix.png", tier: "C", points: 2 },
+            { name: "Murky Auger", image: "https://ga2dojo.wiki.gg/images/Mak-Fix3.png", tier: "B", points: 3 },
+            { name: "Fusillade Duelist", image: "https://ga2dojo.wiki.gg/images/Pistol-Fix.png", tier: "B", points: 3 },
+            { name: "Gleaming Ring", image: "https://ga2dojo.wiki.gg/images/Gleam-Fix3.png", tier: "B", points: 3 },
+            { name: "Tidal Scimitar", image: "https://ga2dojo.wiki.gg/images/Aqua.png", tier: "B", points: 3 },
+            { name: "Envious Leviathan", image: "https://ga2dojo.wiki.gg/images/Leviathan.png", tier: "B", points: 3 },
+            { name: "Meteor Breaker", image: "https://ga2dojo.wiki.gg/images/Bullet.png", tier: "C", points: 2 },
+            { name: "Metallic Hawk", image: "https://ga2dojo.wiki.gg/images/MetalToma.png", tier: "B", points: 3 },
+            { name: "Vagrant Cumber", image: "https://ga2dojo.wiki.gg/images/Laser_Satellites.png", tier: "A", points: 4 },
+            { name: "Fleet Vengeance", image: "https://ga2dojo.wiki.gg/images/Cyber_Blader.png", tier: "B", points: 3 },
+            { name: "Pearl Citadel", image: "https://ga2dojo.wiki.gg/images/Clam.png", tier: "A", points: 4 },
+            { name: "Sleight of Shinobi", image: "https://ga2dojo.wiki.gg/images/Shinobi_Tools_-Jiraiya-.png", tier: "B", points: 3 },
+            { name: "Gyro Sabre", image: "https://ga2dojo.wiki.gg/images/GyroStinger.png", tier: "A", points: 4 },
+            { name: "Lustrous Eclipse", image: "https://ga2dojo.wiki.gg/images/Eclipse_Dazzle.png", tier: "B", points: 3 },
+            { name: "Sphere Distorter", image: "https://ga2dojo.wiki.gg/images/SphereSword.png", tier: "B", points: 3 },
+            { name: "Bastille Fleuret", image: "https://ga2dojo.wiki.gg/images/Fending.png", tier: "A", points: 4 },
+            { name: "Ghastly Colossus", image: "https://ga2dojo.wiki.gg/images/Ghastly_Colossus.png", tier: "A", points: 4 },
+            { name: "Havoc Vulcan", image: "https://ga2dojo.wiki.gg/images/HavocSprayer.png", tier: "B", points: 3 },
+            { name: "Fancy Rabbit", image: "https://ga2dojo.wiki.gg/images/Fancy_Bunny.png", tier: "B", points: 3 },
+            { name: "Automata Flash", image: "https://ga2dojo.wiki.gg/images/Reflecting_Scrambler.png?10487f", tier: "B", points: 3 },
+            { name: "Burning Blossom", image: "https://ga2dojo.wiki.gg/images/Saint_spear.png", tier: "S", points: 5 },
+            { name: "Sacrosanct Spear", image: "https://ga2dojo.wiki.gg/images/Saint_spear.png", tier: "B", points: 3 },
+            { name: "Exousia Power", image: "https://ga2dojo.wiki.gg/images/SacredSword.png", tier: "A", points: 4 },
+            { name: "Frigid Gauntlet", image: "https://ga2dojo.wiki.gg/images/Frigidbracer.png", tier: "B", points: 3 },
+            { name: "Mjolnir", image: "https://ga2dojo.wiki.gg/images/Mjolnir.png", tier: "SS", points: 6 },
+            { name: "Gosammer Tempest", image: "https://ga2dojo.wiki.gg/images/Cyclone_Sai.png", tier: "B", points: 3 },
+            { name: "Mystic Lore", image: "https://ga2dojo.wiki.gg/images/Wise_Literature_Book.png", tier: "C", points: 2 },
+            { name: "Crimson Agony", image: "https://ga2dojo.wiki.gg/images/Crimson_Agony.png", tier: "A", points: 4 },
+            { name: "Absolute Zero", image: "https://ga2dojo.wiki.gg/images/Absolute_Zero.png?46fbd1", tier: "S", points: 5 },
+            { name: "Chained Claw", image: "https://ga2dojo.wiki.gg/images/Claw_Shooter.png?626d97", tier: "A", points: 4 },
+            { name: "Vajra Authority", image: "https://ga2dojo.wiki.gg/images/Vijura.png?e7e331", tier: "SS", points: 6 },
+            { name: "Lightning Salvo", image: "https://ga2dojo.wiki.gg/images/Lightning_Smasher.png?95739e", tier: "B", points: 3 },
+            { name: "Forceful Design", image: "https://ga2dojo.wiki.gg/images/Forceful_Design.png?588609", tier: "B", points: 3 },
+            { name: "Venomous Treachery", image: "https://ga2dojo.wiki.gg/images/Venom_Andamain.png?7eaefa", tier: "A", points: 4 },
+            { name: "Melodious Legato", image: "https://ga2dojo.wiki.gg/images/Legato_Melodic.png?3bdcb2", tier: "A", points: 4 },
+            { name: "Skeletal Bow", image: "https://ga2dojo.wiki.gg/images/Bone_Bow.png?bc80d8", tier: "A", points: 4 },
+            { name: "Samael Draig", image: "https://ga2dojo.wiki.gg/images/Samael_-Doraigu-.png?cd92c5", tier: "S", points: 5 },
+            { name: "Biotic Incubator", image: "https://ga2dojo.wiki.gg/images/Bio-Incubator.png?2313ff", tier: "A", points: 4 },
+            { name: "Calamity Spear -Longinus-", image: "https://ga2dojo.wiki.gg/images/Longinus_Spear_.png?77a501", tier: "S", points: 5 },
+            { name: "Mutilation Discus", image: "https://ga2dojo.wiki.gg/images/Mangle_Disks.png?94e763", tier: "A", points: 4 },
+            { name: "Elusory Hexagram", image: "https://ga2dojo.wiki.gg/images/Illusion_Hexagram.png?47d4e0", tier: "S", points: 5 },
+            { name: "Scatter Cannon", image: "https://ga2dojo.wiki.gg/images/Scatter_Cannon.png?c5e0a6", tier: "A", points: 4 },
+            { name: "Corrupt Benediction", image: "https://ga2dojo.wiki.gg/images/Corrupt_Benediction.png?f0a62d", tier: "A", points: 4 },
+            { name: "Fancy Bear", image: "https://ga2dojo.wiki.gg/images/Fancy_Bear.png?5983f6", tier: "B", points: 3 },
+            { name: "Cosmic Buster", image: "https://ga2dojo.wiki.gg/images/Cosmic_Buster.png?dc1ef1", tier: "B", points: 3 },
+            { name: "Night Raid", image: "https://ga2dojo.wiki.gg/images/Night_Raid.png?e2c55e", tier: "S", points: 5 },
+            { name: "Infernal Roar", image: "https://ga2dojo.wiki.gg/images/InfernoRage.png?65620e", tier: "B", points: 3 },
+            { name: "Fiery Naginata", image: "https://ga2dojo.wiki.gg/images/Crimson_Lotus_Naginata.png?8b2a91", tier: "A", points: 4 },
+            { name: "Diabolical Flora", image: "https://ga2dojo.wiki.gg/images/Devil_Shooter.png?8166b0", tier: "B", points: 3 },
+            { name: "Brutal Conquest", image: "https://ga2dojo.wiki.gg/images/Scary_Cleaver.png?6ce7a5", tier: "A", points: 4 },
+            { name: "Twin Rod -Panda-", image: "https://ga2dojo.wiki.gg/images/Panda_Drumsticks.png?11c144", tier: "S", points: 5 },
+            { name: "Blitz Sense", image: "https://ga2dojo.wiki.gg/images/Lightning_Scythe.png?481bae", tier: "SS", points: 6 },
+            { name: "Behemoth's Cutlery", image: "https://ga2dojo.wiki.gg/images/Behemoth_Cutlery.png?a0b361", tier: "S", points: 5 },
+            { name: "Viscious Truculency", image: "https://ga2dojo.wiki.gg/images/Viscious_Truculency.png?cf97cd", tier: "A", points: 4 },
+            { name: "Terra Disaster", image: "https://ga2dojo.wiki.gg/images/Cragg_Disaster.png?817b14", tier: "B", points: 3 },
+            { name: "Solenoid Stars", image: "https://ga2dojo.wiki.gg/images/Shur_i_can.png?cbe92a", tier: "B", points: 3 },
+            { name: "Cobalt Baridche", image: "https://ga2dojo.wiki.gg/images/Aqua_Bardiche.png?b9bfc4", tier: "B", points: 3 },
+            { name: "Mictlantecuhtli Tear", image: "https://ga2dojo.wiki.gg/images/Tearing_Reaper.png?efd0ba", tier: "S", points: 5 },
+            { name: "Basalt Claymore", image: "https://ga2dojo.wiki.gg/images/Intense_Lava.png?b351ff", tier: "A", points: 4 },
+            { name: "Gorgoneion Knight", image: "https://ga2dojo.wiki.gg/images/Gorgoneion_Knight.png?241dcb", tier: "A", points: 4 },
+            { name: "Rune Javelin", image: "https://ga2dojo.wiki.gg/images/Rune_Spear.png?cbeab6", tier: "SS", points: 6 },
+            { name: "Vector Munitions", image: "https://ga2dojo.wiki.gg/images/Laser.png?c0b26f", tier: "B", points: 3 },
+            { name: "Vital Despoiler", image: "https://ga2dojo.wiki.gg/images/Blood_shotgun.png?a8ba67", tier: "S", points: 5 },
+            { name: "Triratna -Threefold Realm-", image: "https://ga2dojo.wiki.gg/images/Treasure_jewel.png?204e68", tier: "A", points: 4 },
+            { name: "Aura Cacus", image: "https://ga2dojo.wiki.gg/images/FireandWindBlade.png?37563c", tier: "A", points: 4 },
+            { name: "Mischievous Pumpkin", image: "https://ga2dojo.wiki.gg/images/Mischievous_Pumpkin.png?e43712", tier: "S", points: 5 },
+            { name: "Riotous Thunder", image: "https://ga2dojo.wiki.gg/images/Thunderclap_Roar.png?730249", tier: "S", points: 5 },
+            { name: "Ninja Art -Spirit Flame-", image: "https://ga2dojo.wiki.gg/images/NinjutsuFireDragon.png?6d0845", tier: "B", points: 3 },
+            { name: "Vibrant Virtuoso", image: "https://ga2dojo.wiki.gg/images/PastelArtist.png?3f231f", tier: "B", points: 3 },
+            { name: "Blazing Heavens", image: "https://ga2dojo.wiki.gg/images/BlastingSpear.png?1d0cf6", tier: "SS", points: 6 },
+            { name: "Northern Empress", image: "https://ga2dojo.wiki.gg/images/NorthernEmpress.png?c42a28", tier: "B", points: 3 },
+            { name: "Surge Anchor", image: "https://ga2dojo.wiki.gg/images/SurgingAnchor.png?958c0a", tier: "A", points: 4 },
+            { name: "Favor of Khonsu", image: "https://ga2dojo.wiki.gg/images/Favour_Sword.png?5fcb89", tier: "SS", points: 6 },
+            { name: "Universal Satellite", image: "https://ga2dojo.wiki.gg/images/Universal_Satellite.png?da9bca", tier: "C", points: 2 },
+            { name: "Ancient Paleontologist", image: "https://ga2dojo.wiki.gg/images/Ancient_Paleontologist.png?ec7e25", tier: "A", points: 4 },
+            { name: "Galvanized Halberd", image: "https://ga2dojo.wiki.gg/images/Electric_Halberd.png?57c97e", tier: "A", points: 4 },
+            { name: "Cruel Mortar", image: "https://ga2dojo.wiki.gg/images/Harshness_Colt.png?c1faf2", tier: "S", points: 5 },
+            { name: "Cold Forge", image: "https://ga2dojo.wiki.gg/images/Frost_Mill.png?d2c62f", tier: "B", points: 3 },
+            { name: "Nova Blaze", image: "https://ga2dojo.wiki.gg/images/Nova_Blaze.png?b38c56", tier: "SS", points: 6 },
+            { name: "Diamond Ice", image: "https://ga2dojo.wiki.gg/images/Sharp_Hale.png?7860d7", tier: "B", points: 3 },
+            { name: "Vindictive Rrhar'il", image: "https://ga2dojo.wiki.gg/images/Vindictive_Ruhahiru.png?d91f38", tier: "B", points: 3 },
+            { name: "Electric Crest", image: "https://ga2dojo.wiki.gg/images/Thunder_Crest.png?1bf953", tier: "A", points: 4 },
+            { name: "Beryl Oblivion", image: "https://ga2dojo.wiki.gg/images/OblivionBeryl.png?5a37cf", tier: "S", points: 5 },
+            { name: "Luminescent Corona", image: "https://ga2dojo.wiki.gg/images/Luminescent_Corona.png?ff0988", tier: "B", points: 3 },
+            { name: "Wisdom Covenant", image: "https://ga2dojo.wiki.gg/images/Oath%27s_Wisdom.png?ba76fa", tier: "SS", points: 6 },
+            { name: "Black Collapse", image: "https://ga2dojo.wiki.gg/images/Hack_Collapse.png?bae025", tier: "A", points: 4 },
+            { name: "Flight Annihilator", image: "https://ga2dojo.wiki.gg/images/FlightAnnhilator.png?c366d0", tier: "S", points: 5 },
+            { name: "Storm Impulse", image: "https://ga2dojo.wiki.gg/images/ImpulseArm.png?31927a", tier: "S", points: 5 },
+            { name: "Spirit Fox -Miketsukami-", image: "https://ga2dojo.wiki.gg/images/ImmortalKitsune.png?ee1a19", tier: "A", points: 4 },
+            { name: "Yumemigusa", image: "https://ga2dojo.wiki.gg/images/IaidoBlade.png?a0df37", tier: "A", points: 4 },
+            { name: "Ordinance Enforcement", image: "https://ga2dojo.wiki.gg/images/ObstinatePrison.png?894bef", tier: "SS", points: 6 },
+            { name: "Steam Glider", image: "https://ga2dojo.wiki.gg/images/SteamGlider.png?615451", tier: "B", points: 3 },
+            { name: "Strigoi Ascutis", image: "https://ga2dojo.wiki.gg/images/Dracula_Bite.png?dee0ec", tier: "S", points: 5 },
+            { name: "Sanguine Arsenal", image: "https://ga2dojo.wiki.gg/images/Blood_Storage.png?ef6cc3", tier: "S", points: 5 },
+            { name: "Ouroboros Grimore", image: "https://ga2dojo.wiki.gg/images/Ouroboros_Grimlore.png?3213f2", tier: "S", points: 5 },
+            { name: "Assassin's Raiments", image: "https://ga2dojo.wiki.gg/images/Dark_Tools.png?76ded7", tier: "A", points: 4 },
+            { name: "Spiral Cryptid", image: "https://ga2dojo.wiki.gg/images/SpiralCryptid.png?904cb3", tier: "S", points: 5 },
+            { name: "Revenant Manipulator", image: "https://ga2dojo.wiki.gg/images/RevenantManipulation.png?c9da9a", tier: "S", points: 5 },
+            { name: "Diseased Toadstool", image: "https://ga2dojo.wiki.gg/images/DiseaseToadstool.png?8c4745", tier: "S", points: 5 },
+            { name: "Diabolic Break", image: "https://ga2dojo.wiki.gg/images/Nightmarearm.png?ab0b0a", tier: "A", points: 4 },
+            { name: "Guardian of Gaia", image: "https://ga2dojo.wiki.gg/images/GaiaProtection.png?8e75bb", tier: "A", points: 4 },
+            { name: "Magic Blade Durandal", image: "https://ga2dojo.wiki.gg/images/FireBladeDurandl.png?a1219a", tier: "SS", points: 6 },
+            { name: "Lotus Stone Staff", image: "https://ga2dojo.wiki.gg/images/ElementalWhip.png?8ab495", tier: "A", points: 4 },
+            { name: "Savage Subjugation", image: "https://ga2dojo.wiki.gg/images/DarkClaw.png?33dae6", tier: "S", points: 5 },
+            { name: "Frost Francisca", image: "https://ga2dojo.wiki.gg/images/FrostFrancisca.png?3a2a57", tier: "A", points: 4 },
+            { name: "Aeshma Asmodeus", image: "https://ga2dojo.wiki.gg/images/AsmoedusAcc.png?4758ac", tier: "SS", points: 6 },
+            { name: "Jet Bayonet Boot", image: "https://ga2dojo.wiki.gg/images/Injectionboot.png?40f80d", tier: "B", points: 3 },
+            { name: "Prism Stone", image: "https://ga2dojo.wiki.gg/images/Solidsquare.png?19d7c9", tier: "SS", points: 6 },
+            { name: "Incarnation of Bastet", image: "https://ga2dojo.wiki.gg/images/Bubastisincarnation.png?bfa1f9", tier: "A", points: 4 },
+            { name: "Wicked Girandole", image: "https://ga2dojo.wiki.gg/images/Wicked_Grandol.png?e749c0", tier: "B", points: 3 },
+            { name: "Rift Massacre", image: "https://ga2dojo.wiki.gg/images/Massacreaxe.png?efbead", tier: "S", points: 5 },
+            { name: "Auxiliary Marshall", image: "https://ga2dojo.wiki.gg/images/AuxillaryMartial.png?8b2eb2", tier: "SS", points: 6 },
+            { name: "Agile Flutter", image: "https://ga2dojo.wiki.gg/images/Flutteryagile.png?c3055b", tier: "A", points: 4 },
+            { name: "Trick Inductor", image: "https://ga2dojo.wiki.gg/images/TrickInductor.png?f2ab9c", tier: "B", points: 3 },
+            { name: "Careless Architect", image: "https://ga2dojo.wiki.gg/images/Architectimplement.png?4ddef1", tier: "S", points: 5 },
+            { name: "Spectral Deathscythe", image: "https://ga2dojo.wiki.gg/images/SpectralDeath.png?a309c6", tier: "S", points: 5 },
+            { name: "Forbidden Decision", image: "https://ga2dojo.wiki.gg/images/Forbidden_Decision.png?2c41b1", tier: "A", points: 4 },
+            { name: "Plasma Control", image: "https://ga2dojo.wiki.gg/images/Plasma_Original.png?3d9d79", tier: "A", points: 4 },
+            { name: "Spiral of Vengeance", image: "https://ga2dojo.wiki.gg/images/Vengeance_Spiral.png?43c1f7", tier: "S", points: 5 },
+            { name: "Yggdrasil Layer", image: "https://ga2dojo.wiki.gg/images/Yggdrasil_Staff.png?4dd637", tier: "SS", points: 6 },
+            { name: "Triple Fermion", image: "https://ga2dojo.wiki.gg/images/Triplet_Fermion.png?f64f6a", tier: "B", points: 3 },
+            { name: "Tosei Armor -Tenkafubu-", image: "https://ga2dojo.wiki.gg/images/Contemporary_Armor.png?146e53", tier: "S", points: 5 },
+            { name: "Butterfly Blossom Bow", image: "https://ga2dojo.wiki.gg/images/Lepidoptera_Bow.png?71c02b", tier: "B", points: 3 },
+            { name: "Region Divergent", image: "https://ga2dojo.wiki.gg/images/Divergent_Region.png?3216fd", tier: "A", points: 4 },
+            { name: "Sky's Caller", image: "https://ga2dojo.wiki.gg/images/Skys_Caller.png?15b9b5", tier: "B", points: 3 },
+            { name: "Masterful Angler", image: "https://ga2dojo.wiki.gg/images/Expert_Angler.png?324cac", tier: "A", points: 4 },
+            { name: "Adversa Tonitrus", image: "https://ga2dojo.wiki.gg/images/Adverse_Tonitrus.png?dd2f01", tier: "SS", points: 6 },
+            { name: "Torero Capote", image: "https://ga2dojo.wiki.gg/images/Torero_Capote.png?8366d2", tier: "A", points: 4 },
+            { name: "Heavenly Storm -Seraphim-", image: "https://ga2dojo.wiki.gg/images/Seraphim_Windbreaker.png?8b7185", tier: "A", points: 4 },
+            { name: "Halberd of Grievance", image: "https://ga2dojo.wiki.gg/images/Grudge_Naginata.png?f87c92", tier: "S", points: 5 },
+            { name: "Phantom Cannon -Sutoku-", image: "https://ga2dojo.wiki.gg/images/Takanori.png?e03d12", tier: "A", points: 4 },
+            { name: "All Range Commando", image: "https://ga2dojo.wiki.gg/images/All_Range_Commando.png?18dcb2", tier: "C", points: 2 },
+            { name: "Exoskeleton Purge", image: "https://ga2dojo.wiki.gg/images/Exoskeleton_Purger.png?796950", tier: "A", points: 4 },
+            { name: "Endurance Core", image: "https://ga2dojo.wiki.gg/images/Endurance_Core.png?62a8f5", tier: "S", points: 5 },
+            { name: "Pretty Costume -Hamster-", image: "https://ga2dojo.wiki.gg/images/Pretty_Costume_-Hamster-.png?5dd977", tier: "A", points: 4 },
+            { name: "Shadow Massacre", image: "https://ga2dojo.wiki.gg/images/Decapitation_Conceal.png?c3aca8", tier: "A", points: 4 },
+            { name: "Pieu D'Orleans", image: "https://ga2dojo.wiki.gg/images/Orleans_Stake.png?f55ff0", tier: "A", points: 4 },
+            { name: "Ambush Cybernetics", image: "https://ga2dojo.wiki.gg/images/Cybernetic_Sneak.png?752c39", tier: "A", points: 4 },
+            { name: "Hound Puppet", image: "https://ga2dojo.wiki.gg/images/Guardian_Chain_Hades.png?e40c14", tier: "A", points: 4 },
+            { name: "Blossom Rifle -Beniyutaka-", image: "https://ga2dojo.wiki.gg/images/Blossom_Rifle_-Beniyutaka-.png?e33a20", tier: "B", points: 3 },
+            { name: "Shade Apparition", image: "https://ga2dojo.wiki.gg/images/Bilocation_Dagger.png?5e7566", tier: "A", points: 4 },
+            { name: "Angelic Charity", image: "https://ga2dojo.wiki.gg/images/Angelic_Assistance.png?b75b31", tier: "B", points: 3 },
+            { name: "Shackle Divide", image: "https://ga2dojo.wiki.gg/images/Divide_Seal.png?97feb9", tier: "A", points: 4 },
+            { name: "Climate Temper", image: "https://ga2dojo.wiki.gg/images/Climate_Temper.png?a2be55", tier: "A", points: 4 },
+            { name: "Light Arcana [Hermit]", image: "https://ga2dojo.wiki.gg/images/Hermit_Accessory.png?ac79ce", tier: "S", points: 5 },
+            { name: "Mutation Orb", image: "https://ga2dojo.wiki.gg/images/Variation_Orb.png?a77789", tier: "S", points: 5 },
+            { name: "Tethys' Grace", image: "https://ga2dojo.wiki.gg/images/Deep_Sea_Cane.png?e2737c", tier: "A", points: 4 },
+            { name: "Compound Archer", image: "https://ga2dojo.wiki.gg/images/Compound_Archer.png?218067", tier: "B", points: 3 },
+            { name: "Ancient Ghoul", image: "https://ga2dojo.wiki.gg/images/Ancient_Ghoul.png?1423b6", tier: "B", points: 3 },
+            { name: "Crimson Dragon Claws", image: "https://ga2dojo.wiki.gg/images/FireDragon_Claw.png?9534b8", tier: "S", points: 5 },
+            { name: "Combat Operations", image: "https://ga2dojo.wiki.gg/images/Combat_Operations.png", tier: "S", points: 5 },
+            { name: "Valentine Candy Bag", image: "https://ga2dojo.wiki.gg/images/Valentine_Candy_Bag.png?480539", tier: "C", points: 2 },
+            { name: "Dream Sack", image: "https://ga2dojo.wiki.gg/images/Dream_Sack.png?e7d381", tier: "C", points: 2 },
+            { name: "Sweet Honey Bag", image: "https://ga2dojo.wiki.gg/images/Sweet_Honey_Bag.png?64b8b2", tier: "C", points: 2 },
+            { name: "Memory Film", image: "https://ga2dojo.wiki.gg/images/Memory_Film.png?a445a2", tier: "B", points: 3 },
+            { name: "Vermilion Gust", image: "https://ga2dojo.wiki.gg/images/Vermilion_Gust.png?ee3267", tier: "B", points: 3 },
+            { name: "Thorny Chestnut", image: "https://ga2dojo.wiki.gg/images/Thronchestnut.png?b4991b", tier: "B", points: 3 },
+            { name: "Despair Sack", image: "https://ga2dojo.wiki.gg/images/Despair_Sack.png?cf9297", tier: "C", points: 2 },
+            { name: "Heartbreak Candy Bag", image: "https://ga2dojo.wiki.gg/images/Heartbreak_Candy_Bag.png?968bdc", tier: "C", points: 2 },
+            { name: "Salted Honey Bag", image: "https://ga2dojo.wiki.gg/images/Salted_Honey_Bag.png?31c16b", tier: "C", points: 2 },
+            { name: "Easter Basket", image: "https://ga2dojo.wiki.gg/images/Easter_Basket.png?811351", tier: "C", points: 2 },
+            { name: "Blooming Lily", image: "https://ga2dojo.wiki.gg/images/Blooming_Lily.png?cfbfad", tier: "A", points: 4 },
+            { name: "Water Balloon", image: "https://ga2dojo.wiki.gg/images/Water.png?2d2947", tier: "C", points: 2 },
+            { name: "Holy Crosier", image: "https://ga2dojo.wiki.gg/images/Holy_Crosier.png?b95df4", tier: "C", points: 2 },
+            { name: "Planetary Telescope", image: "https://ga2dojo.wiki.gg/images/Telescope.png?123731", tier: "B", points: 3 },
+            { name: "Major Feast", image: "https://ga2dojo.wiki.gg/images/Christmas_Turkey.png?a1dbb5", tier: "B", points: 3 },
+            { name: "Heartful Cupid", image: "https://ga2dojo.wiki.gg/images/Heartful_Cupid.png?7c1406", tier: "C", points: 2 },
+            { name: "Ornamental Evergreen", image: "https://ga2dojo.wiki.gg/images/Ornamental_Tree.png?8bb0c8", tier: "A", points: 4 },
+            { name: "Bonbon Machinegun", image: "https://ga2dojo.wiki.gg/images/Bonbon_Machinegun.png?82d17b", tier: "A", points: 4 },
+            { name: "Hallowed Falchion", image: "https://ga2dojo.wiki.gg/images/Falchion-Fix.png?c490b4", tier: "B", points: 3 },
+            { name: "Veteran Cutlass", image: "https://ga2dojo.wiki.gg/images/Mercenary-Fix.png?972d7e", tier: "B", points: 3 },
+            { name: "Green Onion", image: "https://ga2dojo.wiki.gg/images/Green_Onion.png?dad70a", tier: "B", points: 3 },
+            { name: "Bamboo Shoot", image: "https://ga2dojo.wiki.gg/images/Bamboo.png?78b839", tier: "SS", points: 6 },
+            { name: "Trace Laser", image: "https://ga2dojo.wiki.gg/images/Laser_Signal.png?39d674", tier: "C", points: 2 },
+            { name: "Emblazoned Halberd", image: "https://ga2dojo.wiki.gg/images/BrandishingHalberd.png?7e1100", tier: "B", points: 3 },
+            { name: "Spoils of War", image: "https://ga2dojo.wiki.gg/images/BraveBounty.png?6ece89", tier: "B", points: 3 },
+            { name: "Emperor's Blade", image: "https://ga2dojo.wiki.gg/images/Emperorblade.png?eb9acf", tier: "A", points: 4 }
+        ];
+
+        gearDatabase.sort((a, b) => a.name.localeCompare(b.name));
+
+        function getInitials(name) {
+            const parts = name.trim().split(/[\s-]+/);
+            if (parts.length === 1) return name.substring(0, 2).toUpperCase();
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+
+        function getGearImageUrl(gear) {
+            return gear.image !== "" ? gear.image : `https://via.placeholder.com/50/333333/ffffff?text=${getInitials(gear.name)}`;
+        }
+
+        // Função para recalcular e checar o orçamento de um time específico
+        function updateTeamBudget(teamId) {
+            const teamElement = document.getElementById(teamId);
+            const slots = teamElement.querySelectorAll('.dropzone');
+            
+            let totalSpent = 0;
+            slots.forEach(slot => {
+                totalSpent += parseInt(slot.dataset.cost);
+            });
+
+            const remaining = maxBudget - totalSpent;
+            teamElement.dataset.budget = remaining;
+            
+            const badge = teamElement.querySelector('.budget-value');
+            badge.textContent = remaining;
+
+            // Altera a cor do contador se estiver zerado
+            const badgeContainer = teamElement.querySelector('.team-budget');
+            if (remaining === 0) {
+                badgeContainer.style.color = '#f31260';
+                badgeContainer.style.borderColor = 'rgba(243, 18, 96, 0.4)';
+                badgeContainer.style.background = 'rgba(243, 18, 96, 0.1)';
+            } else {
+                badgeContainer.style.color = 'var(--budget-color)';
+                badgeContainer.style.borderColor = 'rgba(245, 166, 35, 0.3)';
+                badgeContainer.style.background = 'rgba(245, 166, 35, 0.1)';
+            }
+            
+            checkCatalogAvailability();
+        }
+
+        // Desativa (aplica opacidade/bloqueio) nos itens que ultrapassam o teto de gastos
+        function checkCatalogAvailability() {
+            // Verifica o orçamento do time que está sofrendo hover no momento.
+            // Para simplificar a visão do capitão que está arrastando: se ELE segurar, bloqueia.
+            // Como ambos os times têm restrição, ocultamos da lista geral os itens que *nenhum* time pode pagar.
+            
+            const budgetBlue = parseInt(document.getElementById('team-blue').dataset.budget);
+            const budgetRed = parseInt(document.getElementById('team-red').dataset.budget);
+            const highestBudget = Math.max(budgetBlue, budgetRed);
+
+            const cards = document.querySelectorAll('.catalog-card');
+            cards.forEach(card => {
+                const cost = parseInt(card.dataset.gearCost);
+                if (cost > highestBudget) {
+                    card.classList.add('disabled');
+                    card.setAttribute('draggable', 'false'); // Impede de arrastar fisicamente
+                } else {
+                    card.classList.remove('disabled');
+                    card.setAttribute('draggable', 'true');
+                }
+            });
+        }
+
+        function removeGear(slotId) {
+            const slot = document.getElementById(slotId);
+            const btn = slot.querySelector('.gear-btn');
+            
+            // Restaura o visual vazio
+            btn.innerHTML = `<div class="gear-btn-content">Arraste um acessório aqui...</div>`;
+            btn.classList.remove('selected');
+            
+            // Esconde o botão remover
+            slot.querySelector('.remove-gear-btn').style.display = 'none';
+            
+            // Zera o custo do slot e atualiza a matemática
+            slot.dataset.cost = 0;
+            const teamId = slot.closest('.team-column').id;
+            updateTeamBudget(teamId);
+        }
+
+        function renderCatalog() {
+            const catalogGrid = document.getElementById('catalogGrid');
+            catalogGrid.innerHTML = '';
+
+            gearDatabase.forEach(gear => {
+                const imgUrl = getGearImageUrl(gear);
+                
+                const card = document.createElement('div');
+                card.className = 'catalog-card';
+                card.setAttribute('draggable', 'true');
+                
+                // Salva os dados do item
+                card.dataset.gearName = gear.name;
+                card.dataset.gearImage = imgUrl;
+                card.dataset.gearCost = gear.points;
+                
+                card.innerHTML = `
+                    <div class="catalog-card-left">
+                        <img src="${imgUrl}" alt="${gear.name}" onerror="this.src='https://via.placeholder.com/50/333333/ffffff?text=X'">
+                        <div class="catalog-info">
+                            <span class="catalog-name" title="${gear.name}">${gear.name}</span>
+                            <div class="catalog-stats">
+                                <span class="tier-badge">Tier ${gear.tier}</span> | 
+                                <span class="pts-badge">${gear.points} Pts</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                card.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('gearName', gear.name);
+                    e.dataTransfer.setData('gearImage', imgUrl);
+                    e.dataTransfer.setData('gearCost', gear.points);
+                });
+                
+                catalogGrid.appendChild(card);
+            });
+            checkCatalogAvailability();
+        }
+
+        function filterGears() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const items = document.getElementsByClassName('catalog-card');
+
+            for (let i = 0; i < items.length; i++) {
+                const itemName = items[i].querySelector('.catalog-name').textContent.toLowerCase();
+                if (itemName.includes(input)) {
+                    items[i].classList.remove('hidden');
+                } else {
+                    items[i].classList.add('hidden');
+                }
+            }
+        }
+
+        // Zonas de Soltar
+        const dropzones = document.querySelectorAll('.dropzone');
+        dropzones.forEach(zone => {
+            
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                const teamId = zone.closest('.team-column').id;
+                const currentBudget = parseInt(document.getElementById(teamId).dataset.budget);
+                
+                // No dragover padrão não temos como ler o dataTransfer seguro em todos os browsers.
+                // O efeito visual de "recusa" ocorre no drop se o custo for maior.
+                zone.classList.add('drag-over'); 
+            });
+
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('drag-over');
+                zone.classList.remove('drag-error');
+            });
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+                zone.classList.remove('drag-error');
+                
+                const gearName = e.dataTransfer.getData('gearName');
+                const gearImage = e.dataTransfer.getData('gearImage');
+                const gearCost = parseInt(e.dataTransfer.getData('gearCost'));
+                
+                const teamElement = zone.closest('.team-column');
+                const teamId = teamElement.id;
+                
+                // Lógica de Troca (Se o slot já tinha algo, devolve o valor pro orçamento antes de checar)
+                const currentSlotCost = parseInt(zone.dataset.cost);
+                let currentBudget = parseInt(teamElement.dataset.budget);
+                currentBudget += currentSlotCost; 
+
+                // Validação de Teto Salarial
+                if (gearCost > currentBudget) {
+                    zone.classList.add('drag-error');
+                    setTimeout(() => zone.classList.remove('drag-error'), 800);
+                    return; // Bloqueia a ação
+                }
+
+                if(gearName && gearImage) {
+                    const btn = zone.querySelector('.gear-btn');
+                    btn.innerHTML = `
+                        <div class="gear-btn-content">
+                            <img src="${gearImage}">
+                            <span>${gearName}</span>
+                        </div>
+                        <div class="gear-cost-badge">${gearCost} Pts</div>
+                    `;
+                    btn.classList.add('selected');
+
+                    // Atualiza o custo deste slot e recalcula
+                    zone.dataset.cost = gearCost;
+                    updateTeamBudget(teamId);
+
+                    // Mostra botão de remover
+                    zone.querySelector('.remove-gear-btn').style.display = 'block';
+                }
+            });
+        });
+
+        window.onload = renderCatalog;
+
+    </script>
+</body>
+</html>
